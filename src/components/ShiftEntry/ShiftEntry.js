@@ -345,229 +345,185 @@ const ShiftEntry = ({ refreshTrigger }) => {
     console.log('📝 Edit shift clicked:', shift);
     setEditingShift(shift);
   };
-  console.log('📝 Edit shift clicked:', shift);
-  setEditingShift(shift);
 
-  const extractTime = (timeValue) => {
-    if (!timeValue) return '';
-    if (typeof timeValue === 'string' && /^\d{2}:\d{2}$/.test(timeValue)) {
-      return timeValue;
-    }
-    if (timeValue instanceof Date || (typeof timeValue === 'string' && timeValue.includes('1899-12-30'))) {
-      const date = new Date(timeValue);
-      const hours = date.getUTCHours().toString().padStart(2, '0');
-      const minutes = date.getUTCMinutes().toString().padStart(2, '0');
-      return `${hours}:${minutes}`;
-    }
-    if (typeof timeValue === 'string' && timeValue.includes('T')) {
-      const date = new Date(timeValue);
-      return date.toLocaleTimeString('en-US', {
-        hour12: false,
-        hour: '2-digit',
-        minute: '2-digit',
-        timeZone: 'Asia/Calcutta'
-      });
-    }
-    return '';
+
+  const handleCancelEdit = () => {
+    setEditingShift(null);
   };
 
-  let startTime = '';
-  let endTime = '';
-
-  if (shift.segments && shift.segments.length > 0) {
-    const firstSegment = shift.segments[0];
-    const lastSegment = shift.segments[shift.segments.length - 1];
-    startTime = firstSegment.startTime || extractTime(shift.firstStartTime || shift.startTime);
-    endTime = lastSegment.endTime || extractTime(shift.lastEndTime || shift.endTime);
-  } else {
-    startTime = extractTime(shift.firstStartTime || shift.startTime);
-    endTime = extractTime(shift.lastEndTime || shift.endTime);
-  }
-
-  setEditFormData({
-    firstStartTime: startTime,
-    lastEndTime: endTime,
-    shiftType: shift.shiftType || 'Regular'
-  });
-};
-
-const handleCancelEdit = () => {
-  setEditingShift(null);
-};
 
 
+  const handleSubmitTimeSegments = async (segments, scheduleInfo = {}) => {
+    if (!editingShift) return;
 
-const handleSubmitTimeSegments = async (segments, scheduleInfo = {}) => {
-  if (!editingShift) return;
+    setSaving(true);
+    setMessage('');
 
-  setSaving(true);
-  setMessage('');
-
-  if (!user || !user.name || !user.id) {
-    setMessage('Error: User information not available.');
-    setSaving(false);
-    return;
-  }
-
-  try {
-    const payload = {
-      segments,
-      // Use user data as primary source, fallback to shift data
-      employeeName: user.name || editingShift.employeeName || editingShift.name,
-      employeeId: user.id || editingShift.employeeId || editingShift.id,
-      date: editingShift.shiftDate || editingShift.date,
-      shiftType: editingShift.shiftType || 'Regular',
-      ...scheduleInfo
-    };
-
-    console.log('🔍 Segment submission - User data:', { userName: user.name, userId: user.id });
-    console.log('🔍 Segment submission - Shift data:', {
-      shiftName: editingShift.employeeName,
-      shiftId: editingShift.employeeId
-    });
-
-    // 🔥 CRITICAL: Pass existing shift ID if available for proper segment updates (EXACT SAME LOGIC)
-    if (editingShift && (editingShift.shiftId || editingShift.id) && !editingShift.isNew) {
-      payload.existingShiftId = editingShift.shiftId || editingShift.id;
-      payload.isUpdate = true;
-      console.log(`🔧 Using existing shift ID: ${editingShift.shiftId || editingShift.id} for segment update`);
-    } else {
-      console.log('🆕 Creating new shift (no existing shift ID)');
+    if (!user || !user.name || !user.id) {
+      setMessage('Error: User information not available.');
+      setSaving(false);
+      return;
     }
 
-    console.log('📤 ShiftEntry submitting segments with payload:', payload);
+    try {
+      const payload = {
+        segments,
+        // Use user data as primary source, fallback to shift data
+        employeeName: user.name || editingShift.employeeName || editingShift.name,
+        employeeId: user.id || editingShift.employeeId || editingShift.id,
+        date: editingShift.shiftDate || editingShift.date,
+        shiftType: editingShift.shiftType || 'Regular',
+        ...scheduleInfo
+      };
 
-    const response = await submitTimeSegments(payload);
+      console.log('🔍 Segment submission - User data:', { userName: user.name, userId: user.id });
+      console.log('🔍 Segment submission - Shift data:', {
+        shiftName: editingShift.employeeName,
+        shiftId: editingShift.employeeId
+      });
 
-    if (response.success) {
-      setMessage('✅ Time segments updated successfully in Google Sheets!');
-      alert('✅ Time segments updated successfully!');
-      handleCancelEdit();
+      // 🔥 CRITICAL: Pass existing shift ID if available for proper segment updates (EXACT SAME LOGIC)
+      if (editingShift && (editingShift.shiftId || editingShift.id) && !editingShift.isNew) {
+        payload.existingShiftId = editingShift.shiftId || editingShift.id;
+        payload.isUpdate = true;
+        console.log(`🔧 Using existing shift ID: ${editingShift.shiftId || editingShift.id} for segment update`);
+      } else {
+        console.log('🆕 Creating new shift (no existing shift ID)');
+      }
 
-      // 🔄 Force fresh data reload to show updated segments (EXACT SAME LOGIC)
-      console.log('🔄 Forcing fresh data reload after segment update...');
-      setTimeout(() => {
+      console.log('📤 ShiftEntry submitting segments with payload:', payload);
+
+      const response = await submitTimeSegments(payload);
+
+      if (response.success) {
+        setMessage('✅ Time segments updated successfully in Google Sheets!');
+        alert('✅ Time segments updated successfully!');
+        handleCancelEdit();
+
+        // 🔄 Force fresh data reload to show updated segments (EXACT SAME LOGIC)
+        console.log('🔄 Forcing fresh data reload after segment update...');
+        setTimeout(() => {
+          loadCurrentShiftStatus();
+        }, 1000);
+      } else {
+        setMessage('❌ Error: ' + response.message);
+        alert('Error updating time segments: ' + response.message);
+      }
+    } catch (error) {
+      setMessage('❌ Error: ' + handleAPIError(error));
+      console.error('Failed to update time segments:', error);
+      alert('Error updating time segments: ' + handleAPIError(error));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCompleteShift = async (shift) => {
+    if (!shift || !shift.shiftId) {
+      setMessage('Error: No shift to finalize.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await makeAPICall({
+        action: 'completeShift',
+        shiftId: shift.shiftId,
+        employeeId: user.id,
+        completedAt: new Date().toISOString(),
+        date: shift.shiftDate || shift.date
+      });
+
+      if (response.success) {
+        alert('✅ Shift finalized successfully!');
         loadCurrentShiftStatus();
-      }, 1000);
-    } else {
-      setMessage('❌ Error: ' + response.message);
-      alert('Error updating time segments: ' + response.message);
+      } else {
+        alert('Error: ' + response.message);
+      }
+    } catch (error) {
+      alert('Error: ' + handleAPIError(error));
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    setMessage('❌ Error: ' + handleAPIError(error));
-    console.error('Failed to update time segments:', error);
-    alert('Error updating time segments: ' + handleAPIError(error));
-  } finally {
-    setSaving(false);
-  }
-};
+  };
 
-const handleCompleteShift = async (shift) => {
-  if (!shift || !shift.shiftId) {
-    setMessage('Error: No shift to finalize.');
-    return;
-  }
-
-  setLoading(true);
-  try {
-    const response = await makeAPICall({
-      action: 'completeShift',
-      shiftId: shift.shiftId,
-      employeeId: user.id,
-      completedAt: new Date().toISOString(),
-      date: shift.shiftDate || shift.date
-    });
-
-    if (response.success) {
-      alert('✅ Shift finalized successfully!');
-      loadCurrentShiftStatus();
-    } else {
-      alert('Error: ' + response.message);
+  const formatDate = (dateStr) => {
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString(undefined, {
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      });
+    } catch {
+      return dateStr;
     }
-  } catch (error) {
-    alert('Error: ' + handleAPIError(error));
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
-const formatDate = (dateStr) => {
-  try {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString(undefined, {
-      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    });
-  } catch {
-    return dateStr;
-  }
-};
-
-const formatTime = (timeStr) => {
-  if (!timeStr || timeStr === '-') return '-';
-  try {
-    if (timeStr.match(/^\d{1,2}:\d{2}$/)) {
+  const formatTime = (timeStr) => {
+    if (!timeStr || timeStr === '-') return '-';
+    try {
+      if (timeStr.match(/^\d{1,2}:\d{2}$/)) {
+        return timeStr;
+      }
+      if (timeStr.includes('T')) {
+        const date = new Date(timeStr);
+        return date.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false
+        });
+      }
+      return timeStr;
+    } catch (error) {
       return timeStr;
     }
-    if (timeStr.includes('T')) {
-      const date = new Date(timeStr);
-      return date.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-      });
+  };
+
+  const formatDuration = (duration) => {
+    const num = parseFloat(duration);
+    return isNaN(num) ? '0.00' : num.toFixed(2);
+  };
+
+  const handleViewSegments = (shift) => {
+    let segments = [];
+    if (shift.timeSegments) {
+      try {
+        segments = typeof shift.timeSegments === 'string' ? JSON.parse(shift.timeSegments) : shift.timeSegments;
+      } catch (e) {
+        console.error('Error parsing timeSegments:', e);
+        segments = [];
+      }
+    } else if (shift.segments) {
+      segments = shift.segments;
     }
-    return timeStr;
-  } catch (error) {
-    return timeStr;
+    setViewingSegments({ ...shift, parsedSegments: segments });
+  };
+
+  if (!user) {
+    return (
+      <div className="alert alert-warning">
+        Please log in to manage your shifts.
+      </div>
+    );
   }
-};
 
-const formatDuration = (duration) => {
-  const num = parseFloat(duration);
-  return isNaN(num) ? '0.00' : num.toFixed(2);
-};
+  // Generate all date rows
+  const dateRows = generateDateRows();
 
-const handleViewSegments = (shift) => {
-  let segments = [];
-  if (shift.timeSegments) {
-    try {
-      segments = typeof shift.timeSegments === 'string' ? JSON.parse(shift.timeSegments) : shift.timeSegments;
-    } catch (e) {
-      console.error('Error parsing timeSegments:', e);
-      segments = [];
-    }
-  } else if (shift.segments) {
-    segments = shift.segments;
-  }
-  setViewingSegments({ ...shift, parsedSegments: segments });
-};
+  // Create a map of existing shifts by date for quick lookup
+  const shiftsByDate = {};
+  shifts.forEach(shift => {
+    const dateKey = (shift.shiftDate || shift.date);
+    shiftsByDate[dateKey] = shift;
+  });
 
-if (!user) {
   return (
-    <div className="alert alert-warning">
-      Please log in to manage your shifts.
-    </div>
-  );
-}
-
-// Generate all date rows
-const dateRows = generateDateRows();
-
-// Create a map of existing shifts by date for quick lookup
-const shiftsByDate = {};
-shifts.forEach(shift => {
-  const dateKey = (shift.shiftDate || shift.date);
-  shiftsByDate[dateKey] = shift;
-});
-
-return (
-  <div className="container-fluid p-3" style={{
-    minHeight: '100vh'
-  }}>
-    <style>{`
+    <div className="container-fluid p-3" style={{
+      minHeight: '100vh'
+    }}>
+      <style>{`
         .card-hover {
           transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
@@ -600,438 +556,438 @@ return (
           50% { opacity: 0.7; }
         }
       `}</style>
-    <div className="row g-0">
-      <div className="col-12">
-        <div className="card border-0 mb-4 shadow-lg" style={{
-          background: '#0f3460',
-          borderRadius: '12px'
-        }}>
-          <div className="card-body py-3" style={{
-            background: 'linear-gradient(135deg, #e94560 0%, #ff6b6b 100%)',
+      <div className="row g-0">
+        <div className="col-12">
+          <div className="card border-0 mb-4 shadow-lg" style={{
+            background: '#0f3460',
             borderRadius: '12px'
           }}>
-            <div className="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2">
-              <div>
-                <h4 className="mb-1" style={{ color: '#2d3748', fontWeight: '700' }}>
-                  <i className="bi bi-calendar-check me-2"></i>
-                  Fill My Shifts
-                </h4>
-                <small style={{ color: '#4a5568' }}>
-                  <i className="bi bi-info-circle me-1"></i>
-                  Today + Future Dates - Add times and submit each shift
-                </small>
-              </div>
-              <button
-                className="btn btn-shine"
-                onClick={() => loadCurrentShiftStatus()}
-                disabled={loading}
-                style={{
-                  fontWeight: '600',
-                  borderRadius: '10px',
-                  padding: '10px 20px',
-                  boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
-                }}
-              >
-                {loading ? (
-                  <>
-                    <span className="spinner-border spinner-border-sm me-2" role="status"></span>
-                    Loading...
-                  </>
-                ) : (
-                  <>
-                    <i className="bi bi-arrow-clockwise me-2" style={{ animation: 'spin 2s linear infinite' }}></i>
-                    <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); }}`}</style>
-                    Refresh Data
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {message && (
-          <div className={`alert ${message.includes('✅') ? 'alert-success' : message.includes('❌') ? 'alert-danger' : 'alert-info'} alert-dismissible fade show`} role="alert">
-            {message}
-            <button
-              type="button"
-              className="btn-close"
-              onClick={() => setMessage('')}
-              aria-label="Close"
-            ></button>
-          </div>
-        )}
-
-        {loading ? (
-          <div className="d-flex justify-content-center">
-            <div className="spinner-border" role="status">
-              <span className="visually-hidden">Loading...</span>
-            </div>
-          </div>
-        ) : (
-          <>
-            {/* Mobile Card View */}
-            <div className="d-block d-md-none">
-              {dateRows.map((dateRow, index) => {
-                const existingShift = shiftsByDate[dateRow.date];
-                const isCompleted = existingShift && existingShift.status === 'COMPLETED';
-
-                return (
-                  <div key={index} className={`card mb-3 card-hover`} style={{
-                    borderLeft: `4px solid ${isCompleted ? '#00d9ff' : existingShift ? '#e94560' : '#5a5a5a'}`,
-                    backgroundColor: '#0f3460',
-                    borderRadius: '8px',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
-                    color: 'white'
-                  }}>
-                    <div className="card-header py-2 border-0" style={{
-                      background: isCompleted ? '#00d9ff' :
-                        existingShift ? '#e94560' :
-                          '#16213e',
-                      borderRadius: '8px 8px 0 0',
-                      color: 'white'
-                    }}>
-                      <div className="d-flex justify-content-between align-items-center">
-                        <div>
-                          <strong className="text-white">{dateRow.displayDate}</strong>
-                          <span className="badge bg-white bg-opacity-25 text-white ms-2">{dateRow.dayName}</span>
-                        </div>
-                        {existingShift && (
-                          <span className={`badge pulse-badge ${existingShift.status === 'COMPLETED' ? 'bg-light text-success' :
-                            existingShift.status === 'ACTIVE' ? 'bg-light text-primary' :
-                              existingShift.status === 'DRAFT' ? 'bg-warning text-dark' : 'bg-light text-secondary'
-                            }`} style={{ fontWeight: '700', padding: '6px 12px' }}>
-                            {existingShift.status}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="card-body p-2" style={{ backgroundColor: '#0f3460', color: 'white' }}>
-                      {existingShift ? (
-                        <div className="row g-2 small">
-                          <div className="col-6">
-                            <div className="small" style={{ color: '#9ca3af' }}>Start Time</div>
-                            <strong style={{ color: 'white' }}>{formatTime(existingShift.firstStartTime || existingShift.startTime)}</strong>
-                          </div>
-                          <div className="col-6">
-                            <div className="small" style={{ color: '#9ca3af' }}>End Time</div>
-                            <strong style={{ color: 'white' }}>{formatTime(existingShift.lastEndTime || existingShift.endTime)}</strong>
-                          </div>
-                          <div className="col-12">
-                            <div className="small" style={{ color: '#9ca3af' }}>Duration</div>
-                            <strong style={{ color: '#00d9ff' }}>{formatDuration(existingShift.totalDuration)} hrs</strong>
-                          </div>
-                          <div className="col-12 mt-2 d-flex gap-2">
-                            <button
-                              className={`btn btn-sm flex-grow-1 btn-shine ${isCompleted ? 'btn-outline-success' : 'btn-primary'
-                                }`}
-                              onClick={() => handleEditShift(existingShift)}
-                              disabled={saving}
-                              style={{
-                                borderRadius: '10px',
-                                fontWeight: '600',
-                                padding: '8px'
-                              }}
-                            >
-                              <i className={`bi ${isCompleted ? 'bi-eye' : 'bi-pencil'} me-1`}></i>
-                              {isCompleted ? 'View' : 'Edit'}
-                            </button>
-                            <button
-                              className="btn btn-sm btn-outline-info"
-                              onClick={() => handleViewSegments(existingShift)}
-                              title="View Segments"
-                              style={{ borderRadius: '10px', padding: '8px 12px' }}
-                            >
-                              <i className="bi bi-list-task"></i>
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <button
-                          className="btn w-100 btn-shine"
-                          style={{
-                            borderRadius: '6px',
-                            fontWeight: '600',
-                            padding: '10px',
-                            background: 'linear-gradient(135deg, #00d9ff 0%, #0088cc 100%)',
-                            border: 'none',
-                            color: 'white'
-                          }}
-                          onClick={() => {
-                            setEditingShift({ date: dateRow.date, shiftDate: dateRow.date, isNew: true });
-                            setEditFormData({ firstStartTime: '', lastEndTime: '', shiftType: 'Regular' });
-                          }}
-                          disabled={saving}
-                        >
-                          <i className="bi bi-plus-circle me-2"></i>
-                          Add Shift
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Desktop Table View */}
-            <div className="table-responsive d-none d-md-block shadow-lg" style={{
-              backgroundColor: '#0f3460',
-              borderRadius: '8px',
-              overflow: 'hidden'
+            <div className="card-body py-3" style={{
+              background: 'linear-gradient(135deg, #e94560 0%, #ff6b6b 100%)',
+              borderRadius: '12px'
             }}>
-              <table className="table table-hover mb-0" style={{ color: 'white' }}>
-                <thead style={{
-                  background: 'linear-gradient(135deg, #e94560 0%, #ff6b6b 100%)',
-                  color: 'white'
-                }}>
-                  <tr>
-                    <th style={{ width: '150px' }}>Date</th>
-                    <th style={{ width: '80px' }}>Day</th>
-                    <th style={{ width: '120px' }}>Start Time</th>
-                    <th style={{ width: '120px' }}>End Time</th>
-                    <th style={{ width: '100px' }}>Duration</th>
-                    <th style={{ width: '80px' }}>Segments</th>
-                    <th style={{ width: '100px' }}>Status</th>
-                    <th style={{ width: '140px' }}>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {dateRows.map((dateRow, index) => {
-                    const existingShift = shiftsByDate[dateRow.date];
-                    const isCompleted = existingShift && existingShift.status === 'COMPLETED';
-                    const isActive = existingShift && existingShift.status === 'ACTIVE';
-
-                    return (
-                      <tr key={index} style={{
-                        backgroundColor: isCompleted ? 'rgba(0, 217, 255, 0.15)' :
-                          isActive ? 'rgba(233, 69, 96, 0.15)' :
-                            existingShift ? 'rgba(255, 255, 255, 0.05)' : 'transparent',
-                        transition: 'all 0.2s ease',
-                        color: 'white'
-                      }} className="table-row-hover">
-                        <style>{`.table-row-hover:hover { background-color: rgba(233, 69, 96, 0.25) !important; }`}</style>
-                        <td><strong className={
-                          isCompleted ? 'text-success' : isActive ? 'text-primary' : ''
-                        }>{dateRow.displayDate}</strong></td>
-                        <td>
-                          <span className="badge pulse-badge" style={{
-                            padding: '6px 12px',
-                            fontWeight: '700',
-                            backgroundColor: isCompleted ? '#00d9ff' : existingShift ? '#e94560' : '#5a5a5a',
-                            color: 'white'
-                          }}>{dateRow.dayName}</span>
-                        </td>
-                        <td className={existingShift ? 'fw-semibold' : 'text-muted'}>
-                          {existingShift ? formatTime(existingShift.firstStartTime || existingShift.startTime) : '—'}
-                        </td>
-                        <td className={existingShift ? 'fw-semibold' : 'text-muted'}>
-                          {existingShift ? formatTime(existingShift.lastEndTime || existingShift.endTime) : '—'}
-                        </td>
-                        <td>
-                          {existingShift ? (
-                            <strong style={{ color: '#667eea', fontSize: '1.05rem' }}>{formatDuration(existingShift.totalDuration)} hrs</strong>
-                          ) : <span style={{ color: '#9CA3AF' }}>—</span>}
-                        </td>
-                        <td>
-                          {existingShift && ((existingShift.timeSegments && existingShift.timeSegments !== '[]') || (existingShift.segments && existingShift.segments.length > 0)) ? (
-                            <button
-                              className="btn btn-sm btn-outline-info"
-                              onClick={() => handleViewSegments(existingShift)}
-                              style={{ borderRadius: '50%', width: '30px', height: '30px', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-                              title="View Segments"
-                            >
-                              <i className="bi bi-list-task"></i>
-                            </button>
-                          ) : <span className="text-muted small">—</span>}
-                        </td>
-                        <td>
-                          {existingShift ? (
-                            <span className="badge" style={{
-                              background: existingShift.status === 'COMPLETED' ? '#06D6A0' :
-                                existingShift.status === 'ACTIVE' ? '#FF6B6B' :
-                                  existingShift.status === 'DRAFT' ? '#FFE66D' : '#A8DADC',
-                              color: existingShift.status === 'DRAFT' ? '#2d3748' : 'white',
-                              fontWeight: '700',
-                              padding: '8px 16px'
-                            }}>
-                              {existingShift.status}
-                            </span>
-                          ) : <span className="badge" style={{ background: '#E5E7EB', color: '#6B7280', fontWeight: '600', padding: '6px 14px' }}>Pending</span>}
-                        </td>
-                        <td>
-                          {existingShift ? (
-                            <button
-                              className={`btn btn-sm btn-shine ${isCompleted ? 'btn-outline-success' : 'btn-primary'
-                                }`}
-                              onClick={() => handleEditShift(existingShift)}
-                              disabled={saving}
-                              style={{
-                                borderRadius: '8px',
-                                fontWeight: '600',
-                                padding: '6px 16px'
-                              }}
-                            >
-                              <i className={`bi ${isCompleted ? 'bi-eye' : 'bi-pencil'} me-1`}></i>
-                              {isCompleted ? 'View' : 'Edit'}
-                            </button>
-                          ) : (
-                            <button
-                              className="btn btn-sm btn-shine"
-                              style={{
-                                background: 'linear-gradient(135deg, #00d9ff 0%, #0088cc 100%)',
-                                border: 'none',
-                                borderRadius: '6px',
-                                fontWeight: '600',
-                                padding: '6px 16px',
-                                color: 'white'
-                              }}
-                              onClick={() => {
-                                setEditingShift({ date: dateRow.date, shiftDate: dateRow.date, isNew: true });
-                                setEditFormData({ firstStartTime: '', lastEndTime: '', shiftType: 'Regular' });
-                              }}
-                              disabled={saving}
-                            >
-                              <i className="bi bi-plus-circle me-1"></i>
-                              Add Shift
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-
-    {/* Edit/Add Shift Modal */}
-    {/* View Segments Modal */}
-    {viewingSegments && (
-      <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
-        <div className="modal-dialog modal-dialog-centered">
-          <div className="modal-content">
-            <div className="modal-header bg-light">
-              <h5 className="modal-title">
-                <i className="bi bi-clock-history me-2"></i>
-                Shift Segments
-              </h5>
-              <button type="button" className="btn-close" onClick={() => setViewingSegments(null)}></button>
-            </div>
-            <div className="modal-body p-0">
-              <div className="p-3 bg-light border-bottom">
-                <div className="d-flex justify-content-between">
-                  <div><strong>Date:</strong> {formatDate(viewingSegments.shiftDate || viewingSegments.date)}</div>
-                  <div><strong>Total:</strong> {formatDuration(viewingSegments.totalDuration)} hrs</div>
+              <div className="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2">
+                <div>
+                  <h4 className="mb-1" style={{ color: '#2d3748', fontWeight: '700' }}>
+                    <i className="bi bi-calendar-check me-2"></i>
+                    Fill My Shifts
+                  </h4>
+                  <small style={{ color: '#4a5568' }}>
+                    <i className="bi bi-info-circle me-1"></i>
+                    Today + Future Dates - Add times and submit each shift
+                  </small>
                 </div>
-              </div>
-              <div className="table-responsive">
-                <table className="table table-striped mb-0">
-                  <thead className="table-light">
-                    <tr>
-                      <th>Start</th>
-                      <th>End</th>
-                      <th>Duration</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {viewingSegments.parsedSegments && viewingSegments.parsedSegments.length > 0 ? (
-                      viewingSegments.parsedSegments.map((seg, idx) => (
-                        <tr key={idx}>
-                          <td>{seg.startTime || '-'}</td>
-                          <td>{seg.endTime || '-'}</td>
-                          <td>{seg.duration ? formatDuration(seg.duration) : '-'} hrs</td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="3" className="text-center text-muted py-3">No segments found</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button type="button" className="btn btn-secondary" onClick={() => setViewingSegments(null)}>Close</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    )}
-
-    {editingShift && (
-      <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-        <div className="modal-dialog modal-dialog-centered modal-lg">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h5 className="modal-title">
-                <i className={`bi ${editingShift.isNew ? 'bi-plus-circle' : 'bi-pencil-square'} me-2`}></i>
-                {editingShift.isNew ? 'Add New Shift' : 'Edit Shift Times'}
-              </h5>
-              <button
-                type="button"
-                className="btn-close"
-                onClick={handleCancelEdit}
-                disabled={saving}
-              ></button>
-            </div>
-            <div className="modal-body">
-              <div className="mb-3">
-                <strong>Date:</strong> {formatDate(editingShift.shiftDate || editingShift.date)}
-              </div>
-
-              <div className="row g-3">
-                <div className="col-md-4">
-                  <label className="form-label">Shift Type</label>
-                  <select
-                    className="form-select"
-                    value={editFormData.shiftType}
-                    onChange={(e) => setEditFormData({ ...editFormData, shiftType: e.target.value })}
-                    disabled={saving}
-                  >
-                    <option value="Regular">Regular</option>
-                    <option value="Overtime">Overtime</option>
-                    <option value="Night">Night Shift</option>
-                    <option value="Weekend">Weekend</option>
-                  </select>
-                </div>
-
-                <div className="mb-3">
-                  <strong>Date:</strong> {formatDate(editingShift.shiftDate || editingShift.date)}
-                </div>
-
-                {/* Advanced Time Segment Entry - Always Visible */}
-                <div className="mt-3">
-                  <TimeSegmentEntry
-                    existingSegments={editingShift ? JSON.parse(editingShift.timeSegments || '[]') : []}
-                    onSubmit={handleSubmitTimeSegments}
-                    showSubmitButton={true}
-                    employeeName={editingShift?.employeeName}
-                    employeeId={editingShift?.employeeId}
-                    shiftDate={editingShift?.shiftDate || editingShift?.date}
-                    onCancel={handleCancelEdit}
-                  />
-                </div>
-              </div>
-              <div className="modal-footer">
                 <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={handleCancelEdit}
-                  disabled={saving}
+                  className="btn btn-shine"
+                  onClick={() => loadCurrentShiftStatus()}
+                  disabled={loading}
+                  style={{
+                    fontWeight: '600',
+                    borderRadius: '10px',
+                    padding: '10px 20px',
+                    boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
+                  }}
                 >
-                  Close
+                  {loading ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                      Loading...
+                    </>
+                  ) : (
+                    <>
+                      <i className="bi bi-arrow-clockwise me-2" style={{ animation: 'spin 2s linear infinite' }}></i>
+                      <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); }}`}</style>
+                      Refresh Data
+                    </>
+                  )}
                 </button>
               </div>
             </div>
           </div>
+
+          {message && (
+            <div className={`alert ${message.includes('✅') ? 'alert-success' : message.includes('❌') ? 'alert-danger' : 'alert-info'} alert-dismissible fade show`} role="alert">
+              {message}
+              <button
+                type="button"
+                className="btn-close"
+                onClick={() => setMessage('')}
+                aria-label="Close"
+              ></button>
+            </div>
+          )}
+
+          {loading ? (
+            <div className="d-flex justify-content-center">
+              <div className="spinner-border" role="status">
+                <span className="visually-hidden">Loading...</span>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Mobile Card View */}
+              <div className="d-block d-md-none">
+                {dateRows.map((dateRow, index) => {
+                  const existingShift = shiftsByDate[dateRow.date];
+                  const isCompleted = existingShift && existingShift.status === 'COMPLETED';
+
+                  return (
+                    <div key={index} className={`card mb-3 card-hover`} style={{
+                      borderLeft: `4px solid ${isCompleted ? '#00d9ff' : existingShift ? '#e94560' : '#5a5a5a'}`,
+                      backgroundColor: '#0f3460',
+                      borderRadius: '8px',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+                      color: 'white'
+                    }}>
+                      <div className="card-header py-2 border-0" style={{
+                        background: isCompleted ? '#00d9ff' :
+                          existingShift ? '#e94560' :
+                            '#16213e',
+                        borderRadius: '8px 8px 0 0',
+                        color: 'white'
+                      }}>
+                        <div className="d-flex justify-content-between align-items-center">
+                          <div>
+                            <strong className="text-white">{dateRow.displayDate}</strong>
+                            <span className="badge bg-white bg-opacity-25 text-white ms-2">{dateRow.dayName}</span>
+                          </div>
+                          {existingShift && (
+                            <span className={`badge pulse-badge ${existingShift.status === 'COMPLETED' ? 'bg-light text-success' :
+                              existingShift.status === 'ACTIVE' ? 'bg-light text-primary' :
+                                existingShift.status === 'DRAFT' ? 'bg-warning text-dark' : 'bg-light text-secondary'
+                              }`} style={{ fontWeight: '700', padding: '6px 12px' }}>
+                              {existingShift.status}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="card-body p-2" style={{ backgroundColor: '#0f3460', color: 'white' }}>
+                        {existingShift ? (
+                          <div className="row g-2 small">
+                            <div className="col-6">
+                              <div className="small" style={{ color: '#9ca3af' }}>Start Time</div>
+                              <strong style={{ color: 'white' }}>{formatTime(existingShift.firstStartTime || existingShift.startTime)}</strong>
+                            </div>
+                            <div className="col-6">
+                              <div className="small" style={{ color: '#9ca3af' }}>End Time</div>
+                              <strong style={{ color: 'white' }}>{formatTime(existingShift.lastEndTime || existingShift.endTime)}</strong>
+                            </div>
+                            <div className="col-12">
+                              <div className="small" style={{ color: '#9ca3af' }}>Duration</div>
+                              <strong style={{ color: '#00d9ff' }}>{formatDuration(existingShift.totalDuration)} hrs</strong>
+                            </div>
+                            <div className="col-12 mt-2 d-flex gap-2">
+                              <button
+                                className={`btn btn-sm flex-grow-1 btn-shine ${isCompleted ? 'btn-outline-success' : 'btn-primary'
+                                  }`}
+                                onClick={() => handleEditShift(existingShift)}
+                                disabled={saving}
+                                style={{
+                                  borderRadius: '10px',
+                                  fontWeight: '600',
+                                  padding: '8px'
+                                }}
+                              >
+                                <i className={`bi ${isCompleted ? 'bi-eye' : 'bi-pencil'} me-1`}></i>
+                                {isCompleted ? 'View' : 'Edit'}
+                              </button>
+                              <button
+                                className="btn btn-sm btn-outline-info"
+                                onClick={() => handleViewSegments(existingShift)}
+                                title="View Segments"
+                                style={{ borderRadius: '10px', padding: '8px 12px' }}
+                              >
+                                <i className="bi bi-list-task"></i>
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            className="btn w-100 btn-shine"
+                            style={{
+                              borderRadius: '6px',
+                              fontWeight: '600',
+                              padding: '10px',
+                              background: 'linear-gradient(135deg, #00d9ff 0%, #0088cc 100%)',
+                              border: 'none',
+                              color: 'white'
+                            }}
+                            onClick={() => {
+                              setEditingShift({ date: dateRow.date, shiftDate: dateRow.date, isNew: true });
+                              setEditFormData({ firstStartTime: '', lastEndTime: '', shiftType: 'Regular' });
+                            }}
+                            disabled={saving}
+                          >
+                            <i className="bi bi-plus-circle me-2"></i>
+                            Add Shift
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="table-responsive d-none d-md-block shadow-lg" style={{
+                backgroundColor: '#0f3460',
+                borderRadius: '8px',
+                overflow: 'hidden'
+              }}>
+                <table className="table table-hover mb-0" style={{ color: 'white' }}>
+                  <thead style={{
+                    background: 'linear-gradient(135deg, #e94560 0%, #ff6b6b 100%)',
+                    color: 'white'
+                  }}>
+                    <tr>
+                      <th style={{ width: '150px' }}>Date</th>
+                      <th style={{ width: '80px' }}>Day</th>
+                      <th style={{ width: '120px' }}>Start Time</th>
+                      <th style={{ width: '120px' }}>End Time</th>
+                      <th style={{ width: '100px' }}>Duration</th>
+                      <th style={{ width: '80px' }}>Segments</th>
+                      <th style={{ width: '100px' }}>Status</th>
+                      <th style={{ width: '140px' }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dateRows.map((dateRow, index) => {
+                      const existingShift = shiftsByDate[dateRow.date];
+                      const isCompleted = existingShift && existingShift.status === 'COMPLETED';
+                      const isActive = existingShift && existingShift.status === 'ACTIVE';
+
+                      return (
+                        <tr key={index} style={{
+                          backgroundColor: isCompleted ? 'rgba(0, 217, 255, 0.15)' :
+                            isActive ? 'rgba(233, 69, 96, 0.15)' :
+                              existingShift ? 'rgba(255, 255, 255, 0.05)' : 'transparent',
+                          transition: 'all 0.2s ease',
+                          color: 'white'
+                        }} className="table-row-hover">
+                          <style>{`.table-row-hover:hover { background-color: rgba(233, 69, 96, 0.25) !important; }`}</style>
+                          <td><strong className={
+                            isCompleted ? 'text-success' : isActive ? 'text-primary' : ''
+                          }>{dateRow.displayDate}</strong></td>
+                          <td>
+                            <span className="badge pulse-badge" style={{
+                              padding: '6px 12px',
+                              fontWeight: '700',
+                              backgroundColor: isCompleted ? '#00d9ff' : existingShift ? '#e94560' : '#5a5a5a',
+                              color: 'white'
+                            }}>{dateRow.dayName}</span>
+                          </td>
+                          <td className={existingShift ? 'fw-semibold' : 'text-muted'}>
+                            {existingShift ? formatTime(existingShift.firstStartTime || existingShift.startTime) : '—'}
+                          </td>
+                          <td className={existingShift ? 'fw-semibold' : 'text-muted'}>
+                            {existingShift ? formatTime(existingShift.lastEndTime || existingShift.endTime) : '—'}
+                          </td>
+                          <td>
+                            {existingShift ? (
+                              <strong style={{ color: '#667eea', fontSize: '1.05rem' }}>{formatDuration(existingShift.totalDuration)} hrs</strong>
+                            ) : <span style={{ color: '#9CA3AF' }}>—</span>}
+                          </td>
+                          <td>
+                            {existingShift && ((existingShift.timeSegments && existingShift.timeSegments !== '[]') || (existingShift.segments && existingShift.segments.length > 0)) ? (
+                              <button
+                                className="btn btn-sm btn-outline-info"
+                                onClick={() => handleViewSegments(existingShift)}
+                                style={{ borderRadius: '50%', width: '30px', height: '30px', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                                title="View Segments"
+                              >
+                                <i className="bi bi-list-task"></i>
+                              </button>
+                            ) : <span className="text-muted small">—</span>}
+                          </td>
+                          <td>
+                            {existingShift ? (
+                              <span className="badge" style={{
+                                background: existingShift.status === 'COMPLETED' ? '#06D6A0' :
+                                  existingShift.status === 'ACTIVE' ? '#FF6B6B' :
+                                    existingShift.status === 'DRAFT' ? '#FFE66D' : '#A8DADC',
+                                color: existingShift.status === 'DRAFT' ? '#2d3748' : 'white',
+                                fontWeight: '700',
+                                padding: '8px 16px'
+                              }}>
+                                {existingShift.status}
+                              </span>
+                            ) : <span className="badge" style={{ background: '#E5E7EB', color: '#6B7280', fontWeight: '600', padding: '6px 14px' }}>Pending</span>}
+                          </td>
+                          <td>
+                            {existingShift ? (
+                              <button
+                                className={`btn btn-sm btn-shine ${isCompleted ? 'btn-outline-success' : 'btn-primary'
+                                  }`}
+                                onClick={() => handleEditShift(existingShift)}
+                                disabled={saving}
+                                style={{
+                                  borderRadius: '8px',
+                                  fontWeight: '600',
+                                  padding: '6px 16px'
+                                }}
+                              >
+                                <i className={`bi ${isCompleted ? 'bi-eye' : 'bi-pencil'} me-1`}></i>
+                                {isCompleted ? 'View' : 'Edit'}
+                              </button>
+                            ) : (
+                              <button
+                                className="btn btn-sm btn-shine"
+                                style={{
+                                  background: 'linear-gradient(135deg, #00d9ff 0%, #0088cc 100%)',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  fontWeight: '600',
+                                  padding: '6px 16px',
+                                  color: 'white'
+                                }}
+                                onClick={() => {
+                                  setEditingShift({ date: dateRow.date, shiftDate: dateRow.date, isNew: true });
+                                  setEditFormData({ firstStartTime: '', lastEndTime: '', shiftType: 'Regular' });
+                                }}
+                                disabled={saving}
+                              >
+                                <i className="bi bi-plus-circle me-1"></i>
+                                Add Shift
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
         </div>
       </div>
-    )}
-  </div>
-);
+
+      {/* Edit/Add Shift Modal */}
+      {/* View Segments Modal */}
+      {viewingSegments && (
+        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header bg-light">
+                <h5 className="modal-title">
+                  <i className="bi bi-clock-history me-2"></i>
+                  Shift Segments
+                </h5>
+                <button type="button" className="btn-close" onClick={() => setViewingSegments(null)}></button>
+              </div>
+              <div className="modal-body p-0">
+                <div className="p-3 bg-light border-bottom">
+                  <div className="d-flex justify-content-between">
+                    <div><strong>Date:</strong> {formatDate(viewingSegments.shiftDate || viewingSegments.date)}</div>
+                    <div><strong>Total:</strong> {formatDuration(viewingSegments.totalDuration)} hrs</div>
+                  </div>
+                </div>
+                <div className="table-responsive">
+                  <table className="table table-striped mb-0">
+                    <thead className="table-light">
+                      <tr>
+                        <th>Start</th>
+                        <th>End</th>
+                        <th>Duration</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {viewingSegments.parsedSegments && viewingSegments.parsedSegments.length > 0 ? (
+                        viewingSegments.parsedSegments.map((seg, idx) => (
+                          <tr key={idx}>
+                            <td>{seg.startTime || '-'}</td>
+                            <td>{seg.endTime || '-'}</td>
+                            <td>{seg.duration ? formatDuration(seg.duration) : '-'} hrs</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="3" className="text-center text-muted py-3">No segments found</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setViewingSegments(null)}>Close</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingShift && (
+        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered modal-lg">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">
+                  <i className={`bi ${editingShift.isNew ? 'bi-plus-circle' : 'bi-pencil-square'} me-2`}></i>
+                  {editingShift.isNew ? 'Add New Shift' : 'Edit Shift Times'}
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={handleCancelEdit}
+                  disabled={saving}
+                ></button>
+              </div>
+              <div className="modal-body">
+                <div className="mb-3">
+                  <strong>Date:</strong> {formatDate(editingShift.shiftDate || editingShift.date)}
+                </div>
+
+                <div className="row g-3">
+                  <div className="col-md-4">
+                    <label className="form-label">Shift Type</label>
+                    <select
+                      className="form-select"
+                      value={editFormData.shiftType}
+                      onChange={(e) => setEditFormData({ ...editFormData, shiftType: e.target.value })}
+                      disabled={saving}
+                    >
+                      <option value="Regular">Regular</option>
+                      <option value="Overtime">Overtime</option>
+                      <option value="Night">Night Shift</option>
+                      <option value="Weekend">Weekend</option>
+                    </select>
+                  </div>
+
+                  <div className="mb-3">
+                    <strong>Date:</strong> {formatDate(editingShift.shiftDate || editingShift.date)}
+                  </div>
+
+                  {/* Advanced Time Segment Entry - Always Visible */}
+                  <div className="mt-3">
+                    <TimeSegmentEntry
+                      existingSegments={editingShift ? JSON.parse(editingShift.timeSegments || '[]') : []}
+                      onSubmit={handleSubmitTimeSegments}
+                      showSubmitButton={true}
+                      employeeName={editingShift?.employeeName}
+                      employeeId={editingShift?.employeeId}
+                      shiftDate={editingShift?.shiftDate || editingShift?.date}
+                      onCancel={handleCancelEdit}
+                    />
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={handleCancelEdit}
+                    disabled={saving}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default ShiftEntry;
