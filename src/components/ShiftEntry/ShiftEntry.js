@@ -19,6 +19,13 @@ const ShiftEntry = ({ refreshTrigger }) => {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [editingShift, setEditingShift] = useState(null);
+  const [editFormData, setEditFormData] = useState({
+    firstStartTime: '',
+    lastEndTime: '',
+    shiftType: 'Regular'
+  });
+  const [saving, setSaving] = useState(false);
+  const [showAdvancedEdit, setShowAdvancedEdit] = useState(false);
   const [viewingSegments, setViewingSegments] = useState(null);
 
   // Enhanced Smart Status Calculation (synchronized with AdminDashboard)
@@ -344,14 +351,159 @@ const ShiftEntry = ({ refreshTrigger }) => {
   const handleEditShift = (shift) => {
     console.log('📝 Edit shift clicked:', shift);
     setEditingShift(shift);
-  };
 
+    const extractTime = (timeValue) => {
+      if (!timeValue) return '';
+      if (typeof timeValue === 'string' && /^\d{2}:\d{2}$/.test(timeValue)) {
+        return timeValue;
+      }
+      if (timeValue instanceof Date || (typeof timeValue === 'string' && timeValue.includes('1899-12-30'))) {
+        const date = new Date(timeValue);
+        const hours = date.getUTCHours().toString().padStart(2, '0');
+        const minutes = date.getUTCMinutes().toString().padStart(2, '0');
+        return `${hours}:${minutes}`;
+      }
+      if (typeof timeValue === 'string' && timeValue.includes('T')) {
+        const date = new Date(timeValue);
+        return date.toLocaleTimeString('en-US', {
+          hour12: false,
+          hour: '2-digit',
+          minute: '2-digit',
+          timeZone: 'Asia/Calcutta'
+        });
+      }
+      return '';
+    };
+
+    let startTime = '';
+    let endTime = '';
+
+    if (shift.segments && shift.segments.length > 0) {
+      const firstSegment = shift.segments[0];
+      const lastSegment = shift.segments[shift.segments.length - 1];
+      startTime = firstSegment.startTime || extractTime(shift.firstStartTime || shift.startTime);
+      endTime = lastSegment.endTime || extractTime(shift.lastEndTime || shift.endTime);
+    } else {
+      startTime = extractTime(shift.firstStartTime || shift.startTime);
+      endTime = extractTime(shift.lastEndTime || shift.endTime);
+    }
+
+    setEditFormData({
+      firstStartTime: startTime,
+      lastEndTime: endTime,
+      shiftType: shift.shiftType || 'Regular'
+    });
+  };
 
   const handleCancelEdit = () => {
     setEditingShift(null);
+    setEditFormData({
+      firstStartTime: '',
+      lastEndTime: '',
+      shiftType: 'Regular'
+    });
+    setShowAdvancedEdit(false);
   };
 
+  const calculateDuration = (startTime, endTime) => {
+    if (!startTime || !endTime) return 0;
+    try {
+      const start = new Date(`1970-01-01T${startTime}:00`);
+      const end = new Date(`1970-01-01T${endTime}:00`);
+      let diffMs = end - start;
+      if (diffMs < 0) diffMs += 24 * 60 * 60 * 1000;
+      const hours = diffMs / (1000 * 60 * 60);
+      return Math.round(hours * 100) / 100;
+    } catch (error) {
+      console.error('Error calculating duration:', error);
+      return 0;
+    }
+  };
 
+  const handleSaveEdit = async () => {
+    if (!editingShift || !editFormData.firstStartTime || !editFormData.lastEndTime) {
+      alert('Please fill in both start and end times.');
+      return;
+    }
+
+    const newDuration = calculateDuration(editFormData.firstStartTime, editFormData.lastEndTime);
+    if (newDuration <= 0 || newDuration >= 24) {
+      alert('Invalid time range. Shift must be within 24 hours.');
+      return;
+    }
+
+    const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+    if (!timeRegex.test(editFormData.firstStartTime) || !timeRegex.test(editFormData.lastEndTime)) {
+      alert('Please enter valid time format (HH:MM).');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      // Create updated segments data (EXACT SAME LOGIC)
+      const updatedSegments = [{
+        segmentId: 1,
+        startTime: editFormData.firstStartTime,
+        endTime: editFormData.lastEndTime,
+        duration: newDuration
+      }];
+
+      // Calculate smart status (EXACT SAME LOGIC)
+      const mockShiftData = {
+        segments: updatedSegments,
+        status: 'ACTIVE'
+      };
+      const calculatedStatus = determineSmartStatus(mockShiftData);
+
+      console.log(`📊 ShiftEntry ${editingShift.isNew ? 'Add' : 'Edit'} - Smart status calculated: ${calculatedStatus}`);
+
+      let response;
+
+      if (editingShift.isNew) {
+        // For NEW shifts, use submitTimeSegments (EXACT SAME LOGIC as ShiftEntry original)
+        response = await submitTimeSegments({
+          segments: updatedSegments,
+          employeeName: user.name,
+          employeeId: user.id,
+          date: editingShift.shiftDate || editingShift.date,
+          shiftType: editFormData.shiftType
+        });
+      } else {
+        // For EXISTING shifts, use updateShiftWithEditTracking
+        response = await updateShiftWithEditTracking({
+          shiftId: editingShift.shiftId || editingShift.id,
+          employeeName: user.name,
+          employeeId: user.id,
+          shiftDate: editingShift.shiftDate || editingShift.date,
+          shiftType: editFormData.shiftType,
+          segments: updatedSegments,
+          firstStartTime: editFormData.firstStartTime,
+          lastEndTime: editFormData.lastEndTime,
+          totalDuration: newDuration,
+          scheduleStatus: calculatedStatus,
+          isUpdate: true,
+          isEmployeeEdit: true,
+          editedBy: user.name,
+          editedById: user.id
+        });
+      }
+
+      if (response.success) {
+        alert(editingShift.isNew ? '✅ Shift added successfully!' : '✅ Shift updated successfully!');
+        handleCancelEdit();
+        setTimeout(() => {
+          loadCurrentShiftStatus();
+        }, 1000);
+      } else {
+        alert(`Error ${editingShift.isNew ? 'adding' : 'updating'} shift: ` + response.message);
+      }
+    } catch (error) {
+      console.error(`Failed to ${editingShift.isNew ? 'add' : 'update'} shift:`, error);
+      alert(`Error ${editingShift.isNew ? 'adding' : 'updating'} shift: ` + handleAPIError(error));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleSubmitTimeSegments = async (segments, scheduleInfo = {}) => {
     if (!editingShift) return;
@@ -954,33 +1106,104 @@ const ShiftEntry = ({ refreshTrigger }) => {
                     </select>
                   </div>
 
-                  <div className="mb-3">
-                    <strong>Date:</strong> {formatDate(editingShift.shiftDate || editingShift.date)}
+                  <div className="col-md-4">
+                    <label className="form-label">Start Time</label>
+                    <input
+                      type="time"
+                      className="form-control"
+                      value={editFormData.firstStartTime}
+                      onChange={(e) => setEditFormData({ ...editFormData, firstStartTime: e.target.value })}
+                      disabled={saving}
+                      required
+                    />
                   </div>
 
-                  {/* Advanced Time Segment Entry - Always Visible */}
-                  <div className="mt-3">
-                    <TimeSegmentEntry
-                      existingSegments={editingShift ? JSON.parse(editingShift.timeSegments || '[]') : []}
-                      onSubmit={handleSubmitTimeSegments}
-                      showSubmitButton={true}
-                      employeeName={editingShift?.employeeName}
-                      employeeId={editingShift?.employeeId}
-                      shiftDate={editingShift?.shiftDate || editingShift?.date}
-                      onCancel={handleCancelEdit}
+                  <div className="col-md-4">
+                    <label className="form-label">End Time</label>
+                    <input
+                      type="time"
+                      className="form-control"
+                      value={editFormData.lastEndTime}
+                      onChange={(e) => setEditFormData({ ...editFormData, lastEndTime: e.target.value })}
+                      disabled={saving}
+                      required
                     />
                   </div>
                 </div>
-                <div className="modal-footer">
+
+                {editFormData.firstStartTime && editFormData.lastEndTime && (
+                  <div className="mt-3 p-3 bg-light rounded">
+                    <div className="d-flex justify-content-between align-items-center">
+                      <span>Calculated Duration:</span>
+                      <strong className="text-primary">
+                        {calculateDuration(editFormData.firstStartTime, editFormData.lastEndTime).toFixed(2)} hours
+                      </strong>
+                    </div>
+                  </div>
+                )}
+
+                {/* Advanced Time Segment Entry */}
+                <div className="mt-3">
                   <button
                     type="button"
-                    className="btn btn-secondary"
-                    onClick={handleCancelEdit}
+                    className="btn btn-info btn-sm"
+                    onClick={() => setShowAdvancedEdit(!showAdvancedEdit)}
                     disabled={saving}
                   >
-                    Close
+                    <i className="bi bi-gear me-1"></i>
+                    {showAdvancedEdit ? 'Hide Advanced Edit' : 'Advanced Edit (Time Segments)'}
                   </button>
                 </div>
+
+                {showAdvancedEdit && (
+                  <div className="mt-3">
+                    <h6 className="text-primary">
+                      <i className="bi bi-gear me-2"></i>
+                      Advanced Time Segment Editor
+                    </h6>
+                    <div className="border rounded p-3 bg-light">
+                      <TimeSegmentEntry
+                        existingSegments={editingShift ? JSON.parse(editingShift.timeSegments || '[]') : []}
+                        onSubmit={handleSubmitTimeSegments}
+                        buttonText="Update Time Segments"
+                        submitButtonClass="btn-success"
+                        showSubmitButton={true}
+                        employeeName={editingShift?.employeeName}
+                        employeeId={editingShift?.employeeId}
+                        shiftDate={editingShift?.shiftDate || editingShift?.date}
+                        onCancel={() => setShowAdvancedEdit(false)}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleCancelEdit}
+                  disabled={saving}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleSaveEdit}
+                  disabled={saving || !editFormData.firstStartTime || !editFormData.lastEndTime}
+                >
+                  {saving ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <i className="bi bi-check-lg me-1"></i>
+                      Save Changes
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           </div>
