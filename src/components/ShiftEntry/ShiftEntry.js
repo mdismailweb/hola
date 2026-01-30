@@ -28,6 +28,16 @@ const ShiftEntry = ({ refreshTrigger }) => {
   const [showAdvancedEdit, setShowAdvancedEdit] = useState(false);
   const [viewingSegments, setViewingSegments] = useState(null);
 
+  // Quick Add Shifts state
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [quickAddDateRange, setQuickAddDateRange] = useState({
+    startDate: new Date().toISOString().split('T')[0],
+    endDate: new Date().toISOString().split('T')[0]
+  });
+  const [quickAddSegments, setQuickAddSegments] = useState([]);
+  const [quickAddShiftType, setQuickAddShiftType] = useState('Regular');
+  const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0, isProcessing: false, errors: [] });
+
   // Enhanced Smart Status Calculation (synchronized with AdminDashboard)
   // Enhanced status determination using the same robust logic as ShiftHistory
   const determineSmartStatus = (shiftData) => {
@@ -154,6 +164,139 @@ const ShiftEntry = ({ refreshTrigger }) => {
 
     console.log('📝 Fallback to DRAFT');
     return 'DRAFT';
+  };
+
+  // Generate array of dates between start and end (inclusive)
+  const generateDateArray = (startDate, endDate) => {
+    const dates = [];
+    const current = new Date(startDate);
+    const end = new Date(endDate);
+
+    while (current <= end) {
+      dates.push(new Date(current).toISOString().split('T')[0]);
+      current.setDate(current.getDate() + 1);
+    }
+
+    return dates;
+  };
+
+  // Handle Quick Add Shifts submission
+  const handleQuickAddSubmit = async () => {
+    if (!quickAddSegments || quickAddSegments.length === 0) {
+      alert('Please add at least one time segment.');
+      return;
+    }
+
+    const startDate = new Date(quickAddDateRange.startDate);
+    const endDate = new Date(quickAddDateRange.endDate);
+
+    if (endDate < startDate) {
+      alert('End date must be after or equal to start date.');
+      return;
+    }
+
+    const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+    if (daysDiff > 90) {
+      alert('Date range cannot exceed 90 days. Please select a smaller range.');
+      return;
+    }
+
+    const confirmMsg = `Create shifts for ${daysDiff} day(s) from ${quickAddDateRange.startDate} to ${quickAddDateRange.endDate}?\n\nExisting shifts will be skipped.`;
+    if (!window.confirm(confirmMsg)) {
+      return;
+    }
+
+    const datesToCreate = generateDateArray(quickAddDateRange.startDate, quickAddDateRange.endDate);
+
+    // Filter out dates that already have shifts
+    const datesToProcess = datesToCreate.filter(date => !shiftsByDate[date]);
+
+    if (datesToProcess.length === 0) {
+      alert('All dates in the selected range already have shifts.');
+      return;
+    }
+
+    const skippedCount = datesToCreate.length - datesToProcess.length;
+    if (skippedCount > 0) {
+      const skipMsg = `${skippedCount} date(s) already have shifts and will be skipped.\n\nProceed with creating ${datesToProcess.length} new shift(s)?`;
+      if (!window.confirm(skipMsg)) {
+        return;
+      }
+    }
+
+    setBulkProgress({ current: 0, total: datesToProcess.length, isProcessing: true, errors: [] });
+    setSaving(true);
+
+    const errors = [];
+    let successCount = 0;
+
+    for (let i = 0; i < datesToProcess.length; i++) {
+      const date = datesToProcess[i];
+      setBulkProgress({ current: i + 1, total: datesToProcess.length, isProcessing: true, errors });
+
+      try {
+        const response = await submitTimeSegments({
+          segments: quickAddSegments,
+          employeeName: user.name,
+          employeeId: user.id,
+          date: date,
+          shiftType: quickAddShiftType
+        });
+
+        if (response.success) {
+          successCount++;
+        } else {
+          errors.push({ date, error: response.message });
+        }
+      } catch (error) {
+        errors.push({ date, error: handleAPIError(error) });
+      }
+
+      // Small delay to avoid overwhelming the API
+      if (i < datesToProcess.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+    }
+
+    setBulkProgress({ current: datesToProcess.length, total: datesToProcess.length, isProcessing: false, errors });
+    setSaving(false);
+
+    // Show summary
+    let summaryMsg = `✅ Successfully created ${successCount} shift(s)`;
+    if (errors.length > 0) {
+      summaryMsg += `\n\n❌ Failed to create ${errors.length} shift(s):`;
+      errors.forEach(err => {
+        summaryMsg += `\n- ${err.date}: ${err.error}`;
+      });
+    }
+    alert(summaryMsg);
+
+    // Close modal and refresh if any succeeded
+    if (successCount > 0) {
+      setShowQuickAdd(false);
+      setQuickAddSegments([]);
+      setBulkProgress({ current: 0, total: 0, isProcessing: false, errors: [] });
+      setTimeout(() => {
+        loadCurrentShiftStatus();
+      }, 1000);
+    }
+  };
+
+  // Handle Quick Add time segments submission from TimeSegmentEntry
+  const handleQuickAddSegmentsUpdate = (segments) => {
+    setQuickAddSegments(segments);
+  };
+
+  // Cancel Quick Add modal
+  const handleCancelQuickAdd = () => {
+    setShowQuickAdd(false);
+    setQuickAddSegments([]);
+    setQuickAddDateRange({
+      startDate: new Date().toISOString().split('T')[0],
+      endDate: new Date().toISOString().split('T')[0]
+    });
+    setQuickAddShiftType('Regular');
+    setBulkProgress({ current: 0, total: 0, isProcessing: false, errors: [] });
   };
 
   // Generate date rows for current day + next 2 months
@@ -729,30 +872,49 @@ const ShiftEntry = ({ refreshTrigger }) => {
                     Today + Future Dates - Add times and submit each shift
                   </small>
                 </div>
-                <button
-                  className="btn btn-shine"
-                  onClick={() => loadCurrentShiftStatus()}
-                  disabled={loading}
-                  style={{
-                    fontWeight: '600',
-                    borderRadius: '10px',
-                    padding: '10px 20px',
-                    boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
-                  }}
-                >
-                  {loading ? (
-                    <>
-                      <span className="spinner-border spinner-border-sm me-2" role="status"></span>
-                      Loading...
-                    </>
-                  ) : (
-                    <>
-                      <i className="bi bi-arrow-clockwise me-2" style={{ animation: 'spin 2s linear infinite' }}></i>
-                      <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); }}`}</style>
-                      Refresh Data
-                    </>
-                  )}
-                </button>
+                <div className="d-flex gap-2 flex-wrap">
+                  <button
+                    className="btn btn-shine"
+                    onClick={() => setShowQuickAdd(true)}
+                    disabled={loading || saving}
+                    style={{
+                      fontWeight: '600',
+                      borderRadius: '10px',
+                      padding: '10px 20px',
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      border: 'none',
+                      color: 'white',
+                      boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)'
+                    }}
+                  >
+                    <i className="bi bi-lightning-fill me-2"></i>
+                    Quick Add Shifts
+                  </button>
+                  <button
+                    className="btn btn-shine"
+                    onClick={() => loadCurrentShiftStatus()}
+                    disabled={loading}
+                    style={{
+                      fontWeight: '600',
+                      borderRadius: '10px',
+                      padding: '10px 20px',
+                      boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
+                    }}
+                  >
+                    {loading ? (
+                      <>
+                        <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                        Loading...
+                      </>
+                    ) : (
+                      <>
+                        <i className="bi bi-arrow-clockwise me-2" style={{ animation: 'spin 2s linear infinite' }}></i>
+                        <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); }}`}</style>
+                        Refresh Data
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1012,203 +1174,405 @@ const ShiftEntry = ({ refreshTrigger }) => {
             </>
           )}
         </div>
-      </div>
 
-      {/* Edit/Add Shift Modal */}
-      {/* View Segments Modal */}
-      {viewingSegments && (
-        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content">
-              <div className="modal-header bg-light">
-                <h5 className="modal-title">
-                  <i className="bi bi-clock-history me-2"></i>
-                  Shift Segments
-                </h5>
-                <button type="button" className="btn-close" onClick={() => setViewingSegments(null)}></button>
-              </div>
-              <div className="modal-body p-0">
-                <div className="p-3 bg-light border-bottom">
-                  <div className="d-flex justify-content-between">
-                    <div><strong>Date:</strong> {formatDate(viewingSegments.shiftDate || viewingSegments.date)}</div>
-                    <div><strong>Total:</strong> {formatDuration(viewingSegments.totalDuration)} hrs</div>
+        {/* Quick Add Shifts Modal */}
+        {showQuickAdd && (
+          <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1070 }}>
+            <div className="modal-dialog modal-dialog-centered modal-xl">
+              <div className="modal-content">
+                <div className="modal-header" style={{
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white'
+                }}>
+                  <h5 className="modal-title">
+                    <i className="bi bi-lightning-fill me-2"></i>
+                    Quick Add Shifts - Bulk Creation
+                  </h5>
+                  <button
+                    type="button"
+                    className="btn-close btn-close-white"
+                    onClick={handleCancelQuickAdd}
+                    disabled={bulkProgress.isProcessing}
+                  ></button>
+                </div>
+                <div className="modal-body">
+                  {/* Date Range Selection */}
+                  <div className="card mb-3 border-primary">
+                    <div className="card-header bg-primary text-white">
+                      <i className="bi bi-calendar-range me-2"></i>
+                      Select Date Range
+                    </div>
+                    <div className="card-body">
+                      <div className="row g-3">
+                        <div className="col-md-5">
+                          <label className="form-label fw-bold">Start Date</label>
+                          <input
+                            type="date"
+                            className="form-control"
+                            value={quickAddDateRange.startDate}
+                            onChange={(e) => setQuickAddDateRange({ ...quickAddDateRange, startDate: e.target.value })}
+                            disabled={bulkProgress.isProcessing}
+                          />
+                        </div>
+                        <div className="col-md-2 d-flex align-items-end justify-content-center">
+                          <i className="bi bi-arrow-right fs-3 text-muted mb-2"></i>
+                        </div>
+                        <div className="col-md-5">
+                          <label className="form-label fw-bold">End Date</label>
+                          <input
+                            type="date"
+                            className="form-control"
+                            value={quickAddDateRange.endDate}
+                            onChange={(e) => setQuickAddDateRange({ ...quickAddDateRange, endDate: e.target.value })}
+                            disabled={bulkProgress.isProcessing}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Date Range Summary */}
+                      {(() => {
+                        const start = new Date(quickAddDateRange.startDate);
+                        const end = new Date(quickAddDateRange.endDate);
+                        const daysDiff = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+                        const datesToCreate = generateDateArray(quickAddDateRange.startDate, quickAddDateRange.endDate);
+                        const existingCount = datesToCreate.filter(date => shiftsByDate[date]).length;
+                        const newCount = datesToCreate.length - existingCount;
+
+                        return (
+                          <div className="mt-3 p-3 bg-light rounded">
+                            <div className="d-flex justify-content-between align-items-center">
+                              <div>
+                                <i className="bi bi-calendar3 me-2 text-primary"></i>
+                                <strong>{daysDiff} day(s) selected</strong>
+                              </div>
+                              {existingCount > 0 && (
+                                <div className="text-warning">
+                                  <i className="bi bi-exclamation-triangle me-1"></i>
+                                  {existingCount} shift(s) already exist (will be skipped)
+                                </div>
+                              )}
+                            </div>
+                            {newCount > 0 && (
+                              <div className="mt-2 text-success">
+                                <i className="bi bi-plus-circle me-1"></i>
+                                {newCount} new shift(s) will be created
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
                   </div>
-                </div>
-                <div className="table-responsive">
-                  <table className="table table-striped mb-0">
-                    <thead className="table-light">
-                      <tr>
-                        <th>Start</th>
-                        <th>End</th>
-                        <th>Duration</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {viewingSegments.parsedSegments && viewingSegments.parsedSegments.length > 0 ? (
-                        viewingSegments.parsedSegments.map((seg, idx) => (
-                          <tr key={idx}>
-                            <td>{seg.startTime || '-'}</td>
-                            <td>{seg.endTime || '-'}</td>
-                            <td>{seg.duration ? formatDuration(seg.duration) : '-'} hrs</td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan="3" className="text-center text-muted py-3">No segments found</td>
-                        </tr>
+
+                  {/* Shift Type Selection */}
+                  <div className="card mb-3 border-info">
+                    <div className="card-header bg-info text-white">
+                      <i className="bi bi-tag me-2"></i>
+                      Shift Type
+                    </div>
+                    <div className="card-body">
+                      <select
+                        className="form-select"
+                        value={quickAddShiftType}
+                        onChange={(e) => setQuickAddShiftType(e.target.value)}
+                        disabled={bulkProgress.isProcessing}
+                      >
+                        <option value="Regular">Regular</option>
+                        <option value="Overtime">Overtime</option>
+                        <option value="Night">Night Shift</option>
+                        <option value="Weekend">Weekend</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Time Segments Configuration */}
+                  <div className="card mb-3 border-success">
+                    <div className="card-header bg-success text-white">
+                      <i className="bi bi-clock-history me-2"></i>
+                      Configure Time Segments
+                    </div>
+                    <div className="card-body">
+                      <TimeSegmentEntry
+                        existingSegments={quickAddSegments}
+                        onSubmit={handleQuickAddSegmentsUpdate}
+                        buttonText="Update Time Segments"
+                        submitButtonClass="btn-success"
+                        showSubmitButton={false}
+                        employeeName={user?.name}
+                        employeeId={user?.id}
+                        shiftDate={quickAddDateRange.startDate}
+                        onSegmentsChange={handleQuickAddSegmentsUpdate}
+                      />
+
+                      {quickAddSegments.length > 0 && (
+                        <div className="mt-3 p-2 bg-light rounded">
+                          <small className="text-success">
+                            <i className="bi bi-check-circle me-1"></i>
+                            {quickAddSegments.length} time segment(s) configured
+                          </small>
+                        </div>
                       )}
-                    </tbody>
-                  </table>
+                    </div>
+                  </div>
+
+                  {/* Progress Indicator */}
+                  {bulkProgress.isProcessing && (
+                    <div className="card border-warning">
+                      <div className="card-body">
+                        <div className="d-flex align-items-center mb-2">
+                          <div className="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                          <strong>Creating shifts... {bulkProgress.current} of {bulkProgress.total}</strong>
+                        </div>
+                        <div className="progress" style={{ height: '25px' }}>
+                          <div
+                            className="progress-bar progress-bar-striped progress-bar-animated"
+                            role="progressbar"
+                            style={{ width: `${(bulkProgress.current / bulkProgress.total) * 100}%` }}
+                          >
+                            {Math.round((bulkProgress.current / bulkProgress.total) * 100)}%
+                          </div>
+                        </div>
+                        <small className="text-muted mt-2 d-block">
+                          Please wait while shifts are being created...
+                        </small>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setViewingSegments(null)}>Close</button>
+                <div className="modal-footer">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={handleCancelQuickAdd}
+                    disabled={bulkProgress.isProcessing}
+                  >
+                    <i className="bi bi-x-circle me-1"></i>
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={handleQuickAddSubmit}
+                    disabled={bulkProgress.isProcessing || quickAddSegments.length === 0}
+                    style={{
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      border: 'none'
+                    }}
+                  >
+                    {bulkProgress.isProcessing ? (
+                      <>
+                        <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <i className="bi bi-lightning-fill me-1"></i>
+                        Create Shifts
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {editingShift && (
-        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="modal-dialog modal-dialog-centered modal-lg">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">
-                  <i className={`bi ${editingShift.isNew ? 'bi-plus-circle' : 'bi-pencil-square'} me-2`}></i>
-                  {editingShift.isNew ? 'Add New Shift' : 'Edit Shift Times'}
-                </h5>
-                <button
-                  type="button"
-                  className="btn-close"
-                  onClick={handleCancelEdit}
-                  disabled={saving}
-                ></button>
-              </div>
-              <div className="modal-body">
-                <div className="mb-3">
-                  <strong>Date:</strong> {formatDate(editingShift.shiftDate || editingShift.date)}
+        {/* Edit/Add Shift Modal */}
+        {/* View Segments Modal */}
+        {viewingSegments && (
+          <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
+            <div className="modal-dialog modal-dialog-centered">
+              <div className="modal-content">
+                <div className="modal-header bg-light">
+                  <h5 className="modal-title">
+                    <i className="bi bi-clock-history me-2"></i>
+                    Shift Segments
+                  </h5>
+                  <button type="button" className="btn-close" onClick={() => setViewingSegments(null)}></button>
                 </div>
-
-                <div className="row g-3">
-                  <div className="col-md-4">
-                    <label className="form-label">Shift Type</label>
-                    <select
-                      className="form-select"
-                      value={editFormData.shiftType}
-                      onChange={(e) => setEditFormData({ ...editFormData, shiftType: e.target.value })}
-                      disabled={saving}
-                    >
-                      <option value="Regular">Regular</option>
-                      <option value="Overtime">Overtime</option>
-                      <option value="Night">Night Shift</option>
-                      <option value="Weekend">Weekend</option>
-                    </select>
-                  </div>
-
-                  <div className="col-md-4">
-                    <label className="form-label">Start Time</label>
-                    <input
-                      type="time"
-                      className="form-control"
-                      value={editFormData.firstStartTime}
-                      onChange={(e) => setEditFormData({ ...editFormData, firstStartTime: e.target.value })}
-                      disabled={saving}
-                      required
-                    />
-                  </div>
-
-                  <div className="col-md-4">
-                    <label className="form-label">End Time</label>
-                    <input
-                      type="time"
-                      className="form-control"
-                      value={editFormData.lastEndTime}
-                      onChange={(e) => setEditFormData({ ...editFormData, lastEndTime: e.target.value })}
-                      disabled={saving}
-                      required
-                    />
-                  </div>
-                </div>
-
-                {editFormData.firstStartTime && editFormData.lastEndTime && (
-                  <div className="mt-3 p-3 bg-light rounded">
-                    <div className="d-flex justify-content-between align-items-center">
-                      <span>Calculated Duration:</span>
-                      <strong className="text-primary">
-                        {calculateDuration(editFormData.firstStartTime, editFormData.lastEndTime).toFixed(2)} hours
-                      </strong>
+                <div className="modal-body p-0">
+                  <div className="p-3 bg-light border-bottom">
+                    <div className="d-flex justify-content-between">
+                      <div><strong>Date:</strong> {formatDate(viewingSegments.shiftDate || viewingSegments.date)}</div>
+                      <div><strong>Total:</strong> {formatDuration(viewingSegments.totalDuration)} hrs</div>
                     </div>
                   </div>
-                )}
+                  <div className="table-responsive">
+                    <table className="table table-striped mb-0">
+                      <thead className="table-light">
+                        <tr>
+                          <th>Start</th>
+                          <th>End</th>
+                          <th>Duration</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {viewingSegments.parsedSegments && viewingSegments.parsedSegments.length > 0 ? (
+                          viewingSegments.parsedSegments.map((seg, idx) => (
+                            <tr key={idx}>
+                              <td>{seg.startTime || '-'}</td>
+                              <td>{seg.endTime || '-'}</td>
+                              <td>{seg.duration ? formatDuration(seg.duration) : '-'} hrs</td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan="3" className="text-center text-muted py-3">No segments found</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button type="button" className="btn btn-secondary" onClick={() => setViewingSegments(null)}>Close</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
-                {/* Advanced Time Segment Entry */}
-                <div className="mt-3">
+        {editingShift && (
+          <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+            <div className="modal-dialog modal-dialog-centered modal-lg">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title">
+                    <i className={`bi ${editingShift.isNew ? 'bi-plus-circle' : 'bi-pencil-square'} me-2`}></i>
+                    {editingShift.isNew ? 'Add New Shift' : 'Edit Shift Times'}
+                  </h5>
                   <button
                     type="button"
-                    className="btn btn-info btn-sm"
-                    onClick={() => setShowAdvancedEdit(!showAdvancedEdit)}
+                    className="btn-close"
+                    onClick={handleCancelEdit}
                     disabled={saving}
-                  >
-                    <i className="bi bi-gear me-1"></i>
-                    {showAdvancedEdit ? 'Hide Advanced Edit' : 'Advanced Edit (Time Segments)'}
-                  </button>
+                  ></button>
                 </div>
+                <div className="modal-body">
+                  <div className="mb-3">
+                    <strong>Date:</strong> {formatDate(editingShift.shiftDate || editingShift.date)}
+                  </div>
 
-                {showAdvancedEdit && (
-                  <div className="mt-3">
-                    <h6 className="text-primary">
-                      <i className="bi bi-gear me-2"></i>
-                      Advanced Time Segment Editor
-                    </h6>
-                    <div className="border rounded p-3 bg-light">
-                      <TimeSegmentEntry
-                        existingSegments={editingShift ? JSON.parse(editingShift.timeSegments || '[]') : []}
-                        onSubmit={handleSubmitTimeSegments}
-                        buttonText="Update Time Segments"
-                        submitButtonClass="btn-success"
-                        showSubmitButton={true}
-                        employeeName={editingShift?.employeeName}
-                        employeeId={editingShift?.employeeId}
-                        shiftDate={editingShift?.shiftDate || editingShift?.date}
-                        onCancel={() => setShowAdvancedEdit(false)}
+                  <div className="row g-3">
+                    <div className="col-md-4">
+                      <label className="form-label">Shift Type</label>
+                      <select
+                        className="form-select"
+                        value={editFormData.shiftType}
+                        onChange={(e) => setEditFormData({ ...editFormData, shiftType: e.target.value })}
+                        disabled={saving}
+                      >
+                        <option value="Regular">Regular</option>
+                        <option value="Overtime">Overtime</option>
+                        <option value="Night">Night Shift</option>
+                        <option value="Weekend">Weekend</option>
+                      </select>
+                    </div>
+
+                    <div className="col-md-4">
+                      <label className="form-label">Start Time</label>
+                      <input
+                        type="time"
+                        className="form-control"
+                        value={editFormData.firstStartTime}
+                        onChange={(e) => setEditFormData({ ...editFormData, firstStartTime: e.target.value })}
+                        disabled={saving}
+                        required
+                      />
+                    </div>
+
+                    <div className="col-md-4">
+                      <label className="form-label">End Time</label>
+                      <input
+                        type="time"
+                        className="form-control"
+                        value={editFormData.lastEndTime}
+                        onChange={(e) => setEditFormData({ ...editFormData, lastEndTime: e.target.value })}
+                        disabled={saving}
+                        required
                       />
                     </div>
                   </div>
-                )}
-              </div>
-              <div className="modal-footer">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={handleCancelEdit}
-                  disabled={saving}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={handleSaveEdit}
-                  disabled={saving || !editFormData.firstStartTime || !editFormData.lastEndTime}
-                >
-                  {saving ? (
-                    <>
-                      <span className="spinner-border spinner-border-sm me-2" role="status"></span>
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <i className="bi bi-check-lg me-1"></i>
-                      Save Changes
-                    </>
+
+                  {editFormData.firstStartTime && editFormData.lastEndTime && (
+                    <div className="mt-3 p-3 bg-light rounded">
+                      <div className="d-flex justify-content-between align-items-center">
+                        <span>Calculated Duration:</span>
+                        <strong className="text-primary">
+                          {calculateDuration(editFormData.firstStartTime, editFormData.lastEndTime).toFixed(2)} hours
+                        </strong>
+                      </div>
+                    </div>
                   )}
-                </button>
+
+                  {/* Advanced Time Segment Entry */}
+                  <div className="mt-3">
+                    <button
+                      type="button"
+                      className="btn btn-info btn-sm"
+                      onClick={() => setShowAdvancedEdit(!showAdvancedEdit)}
+                      disabled={saving}
+                    >
+                      <i className="bi bi-gear me-1"></i>
+                      {showAdvancedEdit ? 'Hide Advanced Edit' : 'Advanced Edit (Time Segments)'}
+                    </button>
+                  </div>
+
+                  {showAdvancedEdit && (
+                    <div className="mt-3">
+                      <h6 className="text-primary">
+                        <i className="bi bi-gear me-2"></i>
+                        Advanced Time Segment Editor
+                      </h6>
+                      <div className="border rounded p-3 bg-light">
+                        <TimeSegmentEntry
+                          existingSegments={editingShift ? JSON.parse(editingShift.timeSegments || '[]') : []}
+                          onSubmit={handleSubmitTimeSegments}
+                          buttonText="Update Time Segments"
+                          submitButtonClass="btn-success"
+                          showSubmitButton={true}
+                          employeeName={editingShift?.employeeName}
+                          employeeId={editingShift?.employeeId}
+                          shiftDate={editingShift?.shiftDate || editingShift?.date}
+                          onCancel={() => setShowAdvancedEdit(false)}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="modal-footer">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={handleCancelEdit}
+                    disabled={saving}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={handleSaveEdit}
+                    disabled={saving || !editFormData.firstStartTime || !editFormData.lastEndTime}
+                  >
+                    {saving ? (
+                      <>
+                        <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <i className="bi bi-check-lg me-1"></i>
+                        Save Changes
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };
