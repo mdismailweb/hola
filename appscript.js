@@ -9540,11 +9540,25 @@ function syncCompleteShift(data) {
  * @param {Object} data - Contains shiftId
  * @returns {Object} Response with success status and message
  */
-function deleteShift(data) {
+// 🗑️ DELETE SHIFT (Enhanced for robustness)
+function deleteShift(dataOrId) {
   try {
-    const shiftId = data.shiftId;
+    let shiftId = dataOrId;
+
+    // Robust ID extraction
+    if (dataOrId && typeof dataOrId === 'object') {
+      shiftId = dataOrId.shiftId || dataOrId.id;
+    }
+
+    // Trim if string
+    if (typeof shiftId === 'string') {
+      shiftId = shiftId.trim();
+    }
+
+    Logger.log(`🗑️ Attempting to delete shift. Input: ${JSON.stringify(dataOrId)}, Extracted ID: ${shiftId}`);
 
     if (!shiftId) {
+      Logger.log('❌ No shift ID provided (Shift ID is required)');
       return { success: false, message: 'Shift ID is required' };
     }
 
