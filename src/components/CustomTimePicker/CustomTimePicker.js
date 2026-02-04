@@ -11,7 +11,13 @@ const CustomTimePicker = ({ title = "Start Time", initialTime = "12:00", onConfi
   const hourScrollRef = useRef(null);
   const minuteScrollRef = useRef(null);
 
-  // Parse initial time
+  // Generate hours 1-12
+  const hours = Array.from({ length: 12 }, (_, i) => i + 1);
+
+  // Generate minutes 00-59
+  const minutes = Array.from({ length: 60 }, (_, i) => i);
+
+  // Parse initial time and scroll to position
   useEffect(() => {
     if (initialTime) {
       const match = initialTime.match(/^(\d{1,2}):(\d{2})$/);
@@ -19,30 +25,39 @@ const CustomTimePicker = ({ title = "Start Time", initialTime = "12:00", onConfi
         let hour = parseInt(match[1]);
         const minute = parseInt(match[2]);
 
+        let h12 = hour;
+        let p = 'AM';
+
         // Convert 24-hour to 12-hour format
         if (hour === 0) {
-          hour = 12;
-          setPeriod('AM');
+          h12 = 12;
+          p = 'AM';
         } else if (hour < 12) {
-          setPeriod('AM');
+          p = 'AM';
         } else if (hour === 12) {
-          setPeriod('PM');
+          p = 'PM';
         } else {
-          hour = hour - 12;
-          setPeriod('PM');
+          h12 = hour - 12;
+          p = 'PM';
         }
 
-        setSelectedHour(hour);
+        setSelectedHour(h12);
         setSelectedMinute(minute);
+        setPeriod(p);
+
+        // Scroll to positions after render
+        setTimeout(() => {
+          if (hourScrollRef.current) {
+            const hIndex = hours.indexOf(h12);
+            hourScrollRef.current.scrollTop = hIndex * 40;
+          }
+          if (minuteScrollRef.current) {
+            minuteScrollRef.current.scrollTop = minute * 40;
+          }
+        }, 50);
       }
     }
   }, [initialTime]);
-
-  // Generate hours 1-12
-  const hours = Array.from({ length: 12 }, (_, i) => i + 1);
-
-  // Generate minutes 00-59
-  const minutes = Array.from({ length: 60 }, (_, i) => i);
 
   const handleScroll = (ref, items, setValue, selectedValue) => {
     const container = ref.current;
@@ -58,22 +73,6 @@ const CustomTimePicker = ({ title = "Start Time", initialTime = "12:00", onConfi
     }
   };
 
-  useEffect(() => {
-    // Scroll to selected hour on mount
-    if (hourScrollRef.current) {
-      const itemHeight = 40;
-      const index = hours.indexOf(selectedHour);
-      hourScrollRef.current.scrollTop = index * itemHeight;
-    }
-  }, []);
-
-  useEffect(() => {
-    // Scroll to selected minute on mount
-    if (minuteScrollRef.current) {
-      const itemHeight = 40;
-      minuteScrollRef.current.scrollTop = selectedMinute * itemHeight;
-    }
-  }, []);
 
   const handleDone = () => {
     // Convert to 24-hour format
