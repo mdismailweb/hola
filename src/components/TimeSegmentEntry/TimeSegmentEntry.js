@@ -262,20 +262,33 @@ const TimeSegmentEntry = ({ onSubmit, existingSegments = [], loading = false, sh
   };
 
   return (
-    <Card>
+    <Card sx={{
+      bgcolor: isDarkMode ? '#1e1e1e' : 'background.paper',
+      color: isDarkMode ? '#fff' : 'inherit',
+      border: isDarkMode ? '1px solid #333' : 'none',
+      boxShadow: isDarkMode ? '0 4px 20px rgba(0,0,0,0.5)' : 1
+    }}>
       <CardContent>
         <Box sx={{ mb: 3 }}>
           {/* Title Row */}
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
             <TimeIcon sx={{ mr: 1, color: 'primary.main' }} />
-            <Typography variant="h6" sx={{ flexGrow: 1 }}>
+            <Typography variant="h6" sx={{ flexGrow: 1, color: isDarkMode ? '#00d9ff' : 'inherit' }}>
               Time Segments Entry
             </Typography>
           </Box>
 
           {/* Information Note */}
-          <Alert severity="info" sx={{ mb: 2, fontSize: '0.875rem' }}>
-            <Typography variant="body2">
+          <Alert severity="info" sx={{
+            mb: 2,
+            fontSize: '0.875rem',
+            bgcolor: isDarkMode ? 'rgba(3, 169, 244, 0.1)' : 'info.lighter',
+            color: isDarkMode ? '#b3e5fc' : 'info.dark',
+            '& .MuiAlert-icon': {
+              color: isDarkMode ? '#03a9f4' : 'info.main'
+            }
+          }}>
+            <Typography variant="body2" sx={{ color: 'inherit' }}>
               <strong>Note:</strong> You can only have one active or completed shift per day.
               If you need to modify an existing shift, please use the History tab to edit your times.
             </Typography>
@@ -349,7 +362,8 @@ const TimeSegmentEntry = ({ onSubmit, existingSegments = [], loading = false, sh
                 <Typography variant="subtitle2" sx={{
                   minWidth: { xs: '80px', sm: '100px' },
                   flexShrink: 0,
-                  color: isDarkMode ? 'text.primary' : 'inherit'
+                  color: isDarkMode ? '#ffc107' : 'text.primary',
+                  fontWeight: 'bold'
                 }}>
                   Segment {index + 1}
                 </Typography>
@@ -418,7 +432,21 @@ const TimeSegmentEntry = ({ onSubmit, existingSegments = [], loading = false, sh
                       size="small"
                       sx={{
                         '& .MuiInputBase-input': {
-                          backgroundColor: (isScheduleLocked && !isEditing) ? '#f5f5f5' : 'transparent'
+                          backgroundColor: (isScheduleLocked && !isEditing)
+                            ? (isDarkMode ? '#343a40' : '#f5f5f5')
+                            : 'transparent',
+                          color: isDarkMode ? '#fff' : 'inherit'
+                        },
+                        '& .MuiInputLabel-root': {
+                          color: isDarkMode ? 'rgba(255, 255, 255, 0.7)' : 'inherit'
+                        },
+                        '& .MuiOutlinedInput-root': {
+                          '& fieldset': {
+                            borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.23)' : 'inherit'
+                          },
+                          '&:hover fieldset': {
+                            borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.5)' : 'inherit'
+                          }
                         }
                       }}
                     />
@@ -469,6 +497,14 @@ const TimeSegmentEntry = ({ onSubmit, existingSegments = [], loading = false, sh
                         },
                         '& .MuiInputLabel-root': {
                           color: isDarkMode ? 'rgba(255, 255, 255, 0.7)' : 'inherit'
+                        },
+                        '& .MuiOutlinedInput-root': {
+                          '& fieldset': {
+                            borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.23)' : 'inherit'
+                          },
+                          '&:hover fieldset': {
+                            borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.5)' : 'inherit'
+                          }
                         }
                       }}
                     />
