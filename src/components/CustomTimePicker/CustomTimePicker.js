@@ -19,6 +19,9 @@ const CustomTimePicker = ({ title = "Start Time", initialTime = "12:00", onConfi
 
   // Parse initial time and scroll to position
   useEffect(() => {
+    let targetHour = selectedHour;
+    let targetMinute = selectedMinute;
+
     if (initialTime) {
       const match = initialTime.match(/^(\d{1,2}):(\d{2})$/);
       if (match) {
@@ -45,18 +48,23 @@ const CustomTimePicker = ({ title = "Start Time", initialTime = "12:00", onConfi
         setSelectedMinute(minute);
         setPeriod(p);
 
-        // Scroll to positions after render
-        setTimeout(() => {
-          if (hourScrollRef.current) {
-            const hIndex = hours.indexOf(h12);
-            hourScrollRef.current.scrollTop = hIndex * 40;
-          }
-          if (minuteScrollRef.current) {
-            minuteScrollRef.current.scrollTop = minute * 40;
-          }
-        }, 50);
+        targetHour = h12;
+        targetMinute = minute;
       }
     }
+
+    // Scroll to positions (calculated or defaults) after render
+    setTimeout(() => {
+      if (hourScrollRef.current) {
+        const hIndex = hours.indexOf(targetHour);
+        if (hIndex !== -1) {
+          hourScrollRef.current.scrollTop = hIndex * 40;
+        }
+      }
+      if (minuteScrollRef.current) {
+        minuteScrollRef.current.scrollTop = targetMinute * 40;
+      }
+    }, 50);
   }, [initialTime]);
 
   const handleScroll = (ref, items, setValue, selectedValue) => {
