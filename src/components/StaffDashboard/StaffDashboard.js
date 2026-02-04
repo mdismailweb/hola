@@ -85,7 +85,10 @@ const StaffDashboard = () => {
 
   const MobileNavItem = ({ icon, label, isActive, onClick, isLoading, isDanger }) => (
     <button
-      className={`btn btn-link text-decoration-none d-flex flex-column align-items-center justify-content-center p-1 flex-grow-1 ${isActive ? 'text-primary' : isDanger ? 'text-danger' : 'text-muted'}`}
+      className={`btn btn-link text-decoration-none d-flex flex-column align-items-center justify-content-center p-1 flex-grow-1 ${isActive ? 'text-primary' :
+        isDanger ? 'text-danger' :
+          isDarkMode ? 'text-light opacity-75' : 'text-secondary'
+        }`}
       onClick={onClick}
       disabled={isLoading}
       style={{ transition: 'all 0.2s', border: 'none', background: 'transparent' }}
@@ -116,7 +119,7 @@ const StaffDashboard = () => {
             <span className="text-white-50 small me-2">
               {user?.name?.split(' ')[0]}
             </span>
-            <button className="btn btn-link text-light p-1" onClick={toggleTheme}>
+            <button className="btn btn-link text-light p-1 text-decoration-none" onClick={toggleTheme}>
               <span style={{ fontSize: '1.2rem' }}>{isDarkMode ? '☀️' : '🌙'}</span>
             </button>
           </div>
@@ -214,7 +217,14 @@ const StaffDashboard = () => {
         </div>
       </div>
       {/* Mobile Bottom Navigation */}
-      <div className="d-block d-md-none fixed-bottom bg-white border-top shadow-lg" style={{ zIndex: 1030, paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <div
+        className={`d-block d-md-none fixed-bottom ${isDarkMode ? 'bg-dark' : 'bg-white border-top'} shadow-lg`}
+        style={{
+          zIndex: 1030,
+          paddingBottom: 'env(safe-area-inset-bottom)',
+          borderTop: isDarkMode ? '1px solid #495057' : ''
+        }}
+      >
         <div className="d-flex justify-content-around align-items-center py-1">
           <MobileNavItem
             icon="clock"
