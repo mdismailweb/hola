@@ -1250,9 +1250,9 @@ const ShiftHistory = ({ refreshTrigger }) => {
 
                 <div className="row g-3">
                   <div className="col-md-4">
-                    <label className="form-label">Shift Type</label>
+                    <label className={`form-label ${isDarkMode ? 'text-light' : ''}`}>Shift Type</label>
                     <select
-                      className="form-select"
+                      className={`form-select ${isDarkMode ? 'bg-secondary text-white border-secondary' : ''}`}
                       value={editFormData.shiftType}
                       onChange={(e) => setEditFormData({ ...editFormData, shiftType: e.target.value })}
                       disabled={saving}
@@ -1265,7 +1265,7 @@ const ShiftHistory = ({ refreshTrigger }) => {
                   </div>
 
                   <div className="col-md-4">
-                    <label className="form-label">Start Time</label>
+                    <label className={`form-label ${isDarkMode ? 'text-light' : ''}`}>Start Time</label>
                     {isMobileView ? (
                       <div
                         className="form-control"
@@ -1287,7 +1287,7 @@ const ShiftHistory = ({ refreshTrigger }) => {
                   </div>
 
                   <div className="col-md-4">
-                    <label className="form-label">End Time</label>
+                    <label className={`form-label ${isDarkMode ? 'text-light' : ''}`}>End Time</label>
                     {isMobileView ? (
                       <div
                         className={`form-control ${isDarkMode ? 'bg-secondary text-white border-secondary' : ''}`}

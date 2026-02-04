@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTheme } from '../../contexts/ThemeContext';
 import {
   Box,
   Card,
@@ -32,6 +33,7 @@ import { formatTime12Hour } from '../../utils/timeFormat';
 
 const TimeSegmentEntry = ({ onSubmit, existingSegments = [], loading = false, shiftDate = null, scheduleStatus = 'draft' }) => {
   const { user } = useAuth();
+  const { isDarkMode } = useTheme();
   const [segments, setSegments] = useState(
     existingSegments.length > 0
       ? existingSegments.map(seg => ({
@@ -346,7 +348,8 @@ const TimeSegmentEntry = ({ onSubmit, existingSegments = [], loading = false, sh
               }}>
                 <Typography variant="subtitle2" sx={{
                   minWidth: { xs: '80px', sm: '100px' },
-                  flexShrink: 0
+                  flexShrink: 0,
+                  color: isDarkMode ? 'text.primary' : 'inherit'
                 }}>
                   Segment {index + 1}
                 </Typography>
@@ -382,22 +385,24 @@ const TimeSegmentEntry = ({ onSubmit, existingSegments = [], loading = false, sh
                     <Box
                       onClick={() => handleMobileTimeClick(segment.id, 'startTime', segment.startTime)}
                       sx={{
-                        border: '1px solid rgba(0, 0, 0, 0.23)',
+                        border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.23)' : '1px solid rgba(0, 0, 0, 0.23)',
                         borderRadius: '4px',
                         padding: '8.5px 14px',
                         cursor: segmentEditable ? 'pointer' : 'default',
-                        backgroundColor: (isScheduleLocked && !isEditing) ? '#f5f5f5' : 'transparent',
+                        backgroundColor: (isScheduleLocked && !isEditing)
+                          ? (isDarkMode ? '#343a40' : '#f5f5f5')
+                          : (isDarkMode ? '#2c2c2c' : 'transparent'),
                         '&:hover': {
-                          borderColor: segmentEditable ? 'text.primary' : 'rgba(0, 0, 0, 0.23)'
+                          borderColor: segmentEditable ? (isDarkMode ? 'primary.main' : 'text.primary') : (isDarkMode ? 'rgba(255, 255, 255, 0.23)' : 'rgba(0, 0, 0, 0.23)')
                         },
                         display: 'flex',
                         flexDirection: 'column'
                       }}
                     >
-                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                      <Typography variant="caption" sx={{ color: isDarkMode ? 'rgba(255, 255, 255, 0.7)' : 'text.secondary', fontSize: '0.75rem' }}>
                         Start Time
                       </Typography>
-                      <Typography variant="body1">
+                      <Typography variant="body1" sx={{ color: isDarkMode ? '#fff' : 'inherit' }}>
                         {formatTime12Hour(segment.startTime) || 'Select time'}
                       </Typography>
                     </Box>
@@ -424,22 +429,24 @@ const TimeSegmentEntry = ({ onSubmit, existingSegments = [], loading = false, sh
                     <Box
                       onClick={() => handleMobileTimeClick(segment.id, 'endTime', segment.endTime)}
                       sx={{
-                        border: '1px solid rgba(0, 0, 0, 0.23)',
+                        border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.23)' : '1px solid rgba(0, 0, 0, 0.23)',
                         borderRadius: '4px',
                         padding: '8.5px 14px',
                         cursor: segmentEditable ? 'pointer' : 'default',
-                        backgroundColor: (isScheduleLocked && !isEditing) ? '#f5f5f5' : 'transparent',
+                        backgroundColor: (isScheduleLocked && !isEditing)
+                          ? (isDarkMode ? '#343a40' : '#f5f5f5')
+                          : (isDarkMode ? '#2c2c2c' : 'transparent'),
                         '&:hover': {
-                          borderColor: segmentEditable ? 'text.primary' : 'rgba(0, 0, 0, 0.23)'
+                          borderColor: segmentEditable ? (isDarkMode ? 'primary.main' : 'text.primary') : (isDarkMode ? 'rgba(255, 255, 255, 0.23)' : 'rgba(0, 0, 0, 0.23)')
                         },
                         display: 'flex',
                         flexDirection: 'column'
                       }}
                     >
-                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                      <Typography variant="caption" sx={{ color: isDarkMode ? 'rgba(255, 255, 255, 0.7)' : 'text.secondary', fontSize: '0.75rem' }}>
                         End Time
                       </Typography>
-                      <Typography variant="body1">
+                      <Typography variant="body1" sx={{ color: isDarkMode ? '#fff' : 'inherit' }}>
                         {formatTime12Hour(segment.endTime) || 'Select time'}
                       </Typography>
                     </Box>
@@ -455,7 +462,13 @@ const TimeSegmentEntry = ({ onSubmit, existingSegments = [], loading = false, sh
                       size="small"
                       sx={{
                         '& .MuiInputBase-input': {
-                          backgroundColor: (isScheduleLocked && !isEditing) ? '#f5f5f5' : 'transparent'
+                          backgroundColor: (isScheduleLocked && !isEditing)
+                            ? (isDarkMode ? '#343a40' : '#f5f5f5')
+                            : 'transparent',
+                          color: isDarkMode ? '#fff' : 'inherit'
+                        },
+                        '& .MuiInputLabel-root': {
+                          color: isDarkMode ? 'rgba(255, 255, 255, 0.7)' : 'inherit'
                         }
                       }}
                     />
@@ -523,10 +536,11 @@ const TimeSegmentEntry = ({ onSubmit, existingSegments = [], loading = false, sh
         </Box>
 
         <Box sx={{ mt: 2 }}>
-          <Typography variant="caption" color="text.secondary" sx={{
+          <Typography variant="caption" sx={{
             display: 'block',
             lineHeight: 1.4,
-            wordBreak: 'break-word'
+            wordBreak: 'break-word',
+            color: isDarkMode ? 'rgba(255, 255, 255, 0.6)' : 'text.secondary'
           }}>
             💡 Tip: You can add multiple work segments for the same day (e.g., morning shift + evening shift)
             <br />📝 Note: Use "Fix Timing" to lock your schedule, or "Reveal Slots" to edit locked schedules.

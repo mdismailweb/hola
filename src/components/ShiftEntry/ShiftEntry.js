@@ -1535,15 +1535,15 @@ const ShiftEntry = ({ refreshTrigger }) => {
         {editingShift && (
           <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
             <div className="modal-dialog modal-dialog-centered modal-lg">
-              <div className="modal-content">
-                <div className="modal-header">
+              <div className={`modal-content ${isDarkMode ? 'bg-dark text-light border-secondary' : ''}`}>
+                <div className={`modal-header ${isDarkMode ? 'border-secondary' : ''}`}>
                   <h5 className="modal-title">
                     <i className={`bi ${editingShift.isNew ? 'bi-plus-circle' : 'bi-pencil-square'} me-2`}></i>
                     {editingShift.isNew ? 'Add New Shift' : 'Edit Shift Times'}
                   </h5>
                   <button
                     type="button"
-                    className="btn-close"
+                    className={`btn-close ${isDarkMode ? 'btn-close-white' : ''}`}
                     onClick={handleCancelEdit}
                     disabled={saving}
                   ></button>
@@ -1555,9 +1555,9 @@ const ShiftEntry = ({ refreshTrigger }) => {
 
                   <div className="row g-3">
                     <div className="col-md-4">
-                      <label className="form-label">Shift Type</label>
+                      <label className={`form-label ${isDarkMode ? 'text-light' : ''}`}>Shift Type</label>
                       <select
-                        className="form-select"
+                        className={`form-select ${isDarkMode ? 'bg-secondary text-white border-secondary' : ''}`}
                         value={editFormData.shiftType}
                         onChange={(e) => setEditFormData({ ...editFormData, shiftType: e.target.value })}
                         disabled={saving}
@@ -1570,10 +1570,10 @@ const ShiftEntry = ({ refreshTrigger }) => {
                     </div>
 
                     <div className="col-md-4">
-                      <label className="form-label">Start Time</label>
+                      <label className={`form-label ${isDarkMode ? 'text-light' : ''}`}>Start Time</label>
                       {isMobileView ? (
                         <div
-                          className="form-control"
+                          className={`form-control ${isDarkMode ? 'bg-secondary text-white border-secondary' : ''}`}
                           onClick={() => handleMobileTimeClick('start')}
                           style={{
                             cursor: 'pointer',
@@ -1588,7 +1588,7 @@ const ShiftEntry = ({ refreshTrigger }) => {
                       ) : (
                         <input
                           type="time"
-                          className="form-control"
+                          className={`form-control ${isDarkMode ? 'bg-secondary text-white border-secondary' : ''}`}
                           value={editFormData.firstStartTime}
                           onChange={(e) => setEditFormData({ ...editFormData, firstStartTime: e.target.value })}
                           disabled={saving}
@@ -1598,10 +1598,10 @@ const ShiftEntry = ({ refreshTrigger }) => {
                     </div>
 
                     <div className="col-md-4">
-                      <label className="form-label">End Time</label>
+                      <label className={`form-label ${isDarkMode ? 'text-light' : ''}`}>End Time</label>
                       {isMobileView ? (
                         <div
-                          className="form-control"
+                          className={`form-control ${isDarkMode ? 'bg-secondary text-white border-secondary' : ''}`}
                           onClick={() => handleMobileTimeClick('end')}
                           style={{
                             cursor: 'pointer',
@@ -1616,7 +1616,7 @@ const ShiftEntry = ({ refreshTrigger }) => {
                       ) : (
                         <input
                           type="time"
-                          className="form-control"
+                          className={`form-control ${isDarkMode ? 'bg-secondary text-white border-secondary' : ''}`}
                           value={editFormData.lastEndTime}
                           onChange={(e) => setEditFormData({ ...editFormData, lastEndTime: e.target.value })}
                           disabled={saving}
@@ -1627,10 +1627,10 @@ const ShiftEntry = ({ refreshTrigger }) => {
                   </div>
 
                   {editFormData.firstStartTime && editFormData.lastEndTime && (
-                    <div className="mt-3 p-3 bg-light rounded">
+                    <div className={`mt-3 p-3 rounded ${isDarkMode ? 'bg-secondary text-white' : 'bg-light'}`}>
                       <div className="d-flex justify-content-between align-items-center">
                         <span>Calculated Duration:</span>
-                        <strong className="text-primary">
+                        <strong className={isDarkMode ? 'text-info' : 'text-primary'}>
                           {calculateDuration(editFormData.firstStartTime, editFormData.lastEndTime).toFixed(2)} hours
                         </strong>
                       </div>
@@ -1652,11 +1652,11 @@ const ShiftEntry = ({ refreshTrigger }) => {
 
                   {showAdvancedEdit && (
                     <div className="mt-3">
-                      <h6 className="text-primary">
+                      <h6 className={isDarkMode ? 'text-info' : 'text-primary'}>
                         <i className="bi bi-gear me-2"></i>
                         Advanced Time Segment Editor
                       </h6>
-                      <div className="border rounded p-3 bg-light">
+                      <div className={`border rounded p-3 ${isDarkMode ? 'bg-secondary border-secondary' : 'bg-light'}`}>
                         <TimeSegmentEntry
                           existingSegments={editingShift ? JSON.parse(editingShift.timeSegments || '[]') : []}
                           onSubmit={handleSubmitTimeSegments}
@@ -1672,7 +1672,7 @@ const ShiftEntry = ({ refreshTrigger }) => {
                     </div>
                   )}
                 </div>
-                <div className="modal-footer">
+                <div className={`modal-footer ${isDarkMode ? 'border-secondary' : ''}`}>
                   <button
                     type="button"
                     className="btn btn-secondary"

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTheme } from '../../contexts/ThemeContext';
 import {
   Dialog,
   DialogTitle,
@@ -21,14 +22,19 @@ import {
 } from '@mui/icons-material';
 
 const ScheduleChangeWarning = ({ open, onConfirm, onCancel, userName }) => {
+  const { isDarkMode } = useTheme();
   return (
-    <Dialog 
-      open={open} 
+    <Dialog
+      open={open}
       onClose={onCancel}
       maxWidth="sm"
       fullWidth
       PaperProps={{
-        sx: { borderRadius: 2 }
+        sx: {
+          borderRadius: 2,
+          bgcolor: isDarkMode ? '#1a1a1a' : 'background.paper',
+          color: isDarkMode ? '#fff' : 'inherit'
+        }
       }}
     >
       <DialogTitle sx={{ pb: 1 }}>
@@ -39,7 +45,7 @@ const ScheduleChangeWarning = ({ open, onConfirm, onCancel, userName }) => {
           </Typography>
         </Box>
       </DialogTitle>
-      
+
       <DialogContent>
         <Alert severity="warning" sx={{ mb: 2 }}>
           <Typography variant="subtitle2" gutterBottom>
@@ -60,52 +66,63 @@ const ScheduleChangeWarning = ({ open, onConfirm, onCancel, userName }) => {
             <ListItemIcon>
               <DatabaseIcon color="primary" fontSize="small" />
             </ListItemIcon>
-            <ListItemText 
+            <ListItemText
               primary="All schedule changes are tracked"
+              primaryTypographyProps={{ color: isDarkMode ? '#fff' : 'inherit' }}
               secondary="Modifications will be recorded in the database with timestamp"
+              secondaryTypographyProps={{ color: isDarkMode ? 'rgba(255, 255, 255, 0.7)' : 'text.secondary' }}
             />
           </ListItem>
-          
+
           <ListItem>
             <ListItemIcon>
               <TrackingIcon color="primary" fontSize="small" />
             </ListItemIcon>
-            <ListItemText 
+            <ListItemText
               primary="Change history is maintained"
+              primaryTypographyProps={{ color: isDarkMode ? '#fff' : 'inherit' }}
               secondary="Previous schedule versions and update times are preserved"
+              secondaryTypographyProps={{ color: isDarkMode ? 'rgba(255, 255, 255, 0.7)' : 'text.secondary' }}
             />
           </ListItem>
-          
+
           <ListItem>
             <ListItemIcon>
               <ScheduleIcon color="primary" fontSize="small" />
             </ListItemIcon>
-            <ListItemText 
+            <ListItemText
               primary="Management visibility"
+              primaryTypographyProps={{ color: isDarkMode ? '#fff' : 'inherit' }}
               secondary="Schedule changes may be reviewed by supervisors"
+              secondaryTypographyProps={{ color: isDarkMode ? 'rgba(255, 255, 255, 0.7)' : 'text.secondary' }}
             />
           </ListItem>
         </List>
 
-        <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-          <Typography variant="caption" color="text.secondary">
-            <strong>Note:</strong> This action will unlock your schedule for editing. 
+        <Box sx={{
+          mt: 2,
+          p: 2,
+          bgcolor: isDarkMode ? '#343a40' : 'grey.50',
+          borderRadius: 1
+        }}>
+          <Typography variant="caption" sx={{ color: isDarkMode ? 'rgba(255, 255, 255, 0.7)' : 'text.secondary' }}>
+            <strong>Note:</strong> This action will unlock your schedule for editing.
             Any changes you make will be permanently recorded with your employee ID and current timestamp.
           </Typography>
         </Box>
       </DialogContent>
-      
+
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button 
-          onClick={onCancel} 
+        <Button
+          onClick={onCancel}
           variant="outlined"
           sx={{ minWidth: 100 }}
         >
           Cancel
         </Button>
-        <Button 
-          onClick={onConfirm} 
-          variant="contained" 
+        <Button
+          onClick={onConfirm}
+          variant="contained"
           color="warning"
           sx={{ minWidth: 150 }}
         >
