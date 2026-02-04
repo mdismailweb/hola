@@ -262,12 +262,15 @@ const TimeSegmentEntry = ({ onSubmit, existingSegments = [], loading = false, sh
   };
 
   return (
-    <Card sx={{
-      bgcolor: isDarkMode ? '#1e1e1e' : 'background.paper',
-      color: isDarkMode ? '#fff' : 'inherit',
-      border: isDarkMode ? '1px solid #333' : 'none',
-      boxShadow: isDarkMode ? '0 4px 20px rgba(0,0,0,0.5)' : 1
-    }}>
+    <Card
+      className="card"
+      sx={{
+        bgcolor: isDarkMode ? '#1e1e1e' : 'background.paper',
+        color: isDarkMode ? '#fff' : 'inherit',
+        border: isDarkMode ? '1px solid #333' : 'none',
+        boxShadow: isDarkMode ? '0 4px 20px rgba(0,0,0,0.5)' : 1
+      }}
+    >
       <CardContent>
         <Box sx={{ mb: 3 }}>
           {/* Title Row */}

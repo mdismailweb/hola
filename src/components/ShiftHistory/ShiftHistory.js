@@ -1268,9 +1268,9 @@ const ShiftHistory = ({ refreshTrigger }) => {
                     <label className={`form-label ${isDarkMode ? 'text-light' : ''}`}>Start Time</label>
                     {isMobileView ? (
                       <div
-                        className="form-control"
+                        className={`form-control ${isDarkMode ? 'bg-secondary text-white border-secondary' : ''}`}
                         onClick={() => !saving && handleMobileTimeClick('firstStartTime', editFormData.firstStartTime)}
-                        style={{ cursor: saving ? 'default' : 'pointer', backgroundColor: saving ? '#e9ecef' : '#fff' }}
+                        style={{ cursor: saving ? 'default' : 'pointer', backgroundColor: saving ? (isDarkMode ? '#343a40' : '#e9ecef') : (isDarkMode ? '#495057' : '#fff') }}
                       >
                         {editFormData.firstStartTime || 'Select Time'}
                       </div>
@@ -1310,10 +1310,10 @@ const ShiftHistory = ({ refreshTrigger }) => {
                 </div>
 
                 {editFormData.firstStartTime && editFormData.lastEndTime && (
-                  <div className={`mt-3 p-3 rounded ${isDarkMode ? 'bg-secondary text-white' : 'bg-light'}`}>
+                  <div className={`mt-3 p-3 rounded ${isDarkMode ? 'bg-secondary text-white border border-secondary' : 'bg-light'}`}>
                     <div className="d-flex justify-content-between align-items-center">
                       <span>Calculated Duration:</span>
-                      <strong className="text-primary">
+                      <strong className={isDarkMode ? 'text-info' : 'text-primary'}>
                         {calculateDuration(editFormData.firstStartTime, editFormData.lastEndTime).toFixed(2)} hours
                       </strong>
                     </div>
@@ -1323,11 +1323,11 @@ const ShiftHistory = ({ refreshTrigger }) => {
                 {/* Advanced Time Segment Entry */}
                 {showAdvancedEdit && (
                   <div className="mt-4">
-                    <h6 className="text-primary">
+                    <h6 className={isDarkMode ? 'text-info' : 'text-primary'}>
                       <i className="bi bi-gear me-2"></i>
                       Advanced Time Segment Editor
                     </h6>
-                    <div className={`border rounded p-3 ${isDarkMode ? 'bg-secondary border-secondary' : 'bg-light'}`}>
+                    <div className={`border rounded p-3 ${isDarkMode ? 'bg-dark border-secondary' : 'bg-light'}`}>
                       <TimeSegmentEntry
                         existingSegments={editingShift ? JSON.parse(editingShift.timeSegments || '[]') : []}
                         onSubmit={handleAdvancedEdit}

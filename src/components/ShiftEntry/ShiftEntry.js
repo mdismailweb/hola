@@ -1279,7 +1279,7 @@ const ShiftEntry = ({ refreshTrigger }) => {
         {showQuickAdd && (
           <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1070 }}>
             <div className="modal-dialog modal-dialog-centered modal-xl">
-              <div className="modal-content">
+              <div className={`modal-content ${isDarkMode ? 'bg-dark text-light border-secondary shadow-lg' : ''}`}>
                 <div className="modal-header" style={{
                   background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                   color: 'white'
@@ -1297,8 +1297,8 @@ const ShiftEntry = ({ refreshTrigger }) => {
                 </div>
                 <div className="modal-body">
                   {/* Date Range Selection */}
-                  <div className="card mb-3 border-primary">
-                    <div className="card-header bg-primary text-white">
+                  <div className={`card mb-3 ${isDarkMode ? 'bg-dark border-secondary' : 'border-primary'}`}>
+                    <div className={`card-header ${isDarkMode ? 'bg-secondary text-white' : 'bg-primary text-white'}`}>
                       <i className="bi bi-calendar-range me-2"></i>
                       Select Date Range
                     </div>
@@ -1339,7 +1339,7 @@ const ShiftEntry = ({ refreshTrigger }) => {
                         const newCount = datesToCreate.length - existingCount;
 
                         return (
-                          <div className="mt-3 p-3 bg-light rounded">
+                          <div className={`mt-3 p-3 rounded ${isDarkMode ? 'bg-secondary text-white border border-secondary' : 'bg-light'}`}>
                             <div className="d-flex justify-content-between align-items-center">
                               <div>
                                 <i className="bi bi-calendar3 me-2 text-primary"></i>
@@ -1365,8 +1365,8 @@ const ShiftEntry = ({ refreshTrigger }) => {
                   </div>
 
                   {/* Shift Type Selection */}
-                  <div className="card mb-3 border-info">
-                    <div className="card-header bg-info text-white">
+                  <div className={`card mb-3 ${isDarkMode ? 'bg-dark border-secondary' : 'border-info'}`}>
+                    <div className={`card-header ${isDarkMode ? 'bg-secondary text-white' : 'bg-info text-white'}`}>
                       <i className="bi bi-tag me-2"></i>
                       Shift Type
                     </div>
@@ -1386,8 +1386,8 @@ const ShiftEntry = ({ refreshTrigger }) => {
                   </div>
 
                   {/* Time Segments Configuration */}
-                  <div className="card mb-3 border-success">
-                    <div className="card-header bg-success text-white">
+                  <div className={`card mb-3 ${isDarkMode ? 'bg-dark border-secondary' : 'border-success'}`}>
+                    <div className={`card-header ${isDarkMode ? 'bg-secondary text-white' : 'bg-success text-white'}`}>
                       <i className="bi bi-clock-history me-2"></i>
                       Configure Time Segments
                     </div>
@@ -1405,7 +1405,7 @@ const ShiftEntry = ({ refreshTrigger }) => {
                       />
 
                       {quickAddSegments.length > 0 && (
-                        <div className="mt-3 p-2 bg-light rounded">
+                        <div className={`mt-3 p-2 rounded ${isDarkMode ? 'bg-secondary text-white border border-secondary' : 'bg-light'}`}>
                           <small className="text-success">
                             <i className="bi bi-check-circle me-1"></i>
                             {quickAddSegments.length} time segment(s) configured
@@ -1439,7 +1439,7 @@ const ShiftEntry = ({ refreshTrigger }) => {
                     </div>
                   )}
                 </div>
-                <div className="modal-footer">
+                <div className={`modal-footer ${isDarkMode ? 'border-secondary' : ''}`}>
                   <button
                     type="button"
                     className="btn btn-secondary"
@@ -1656,7 +1656,7 @@ const ShiftEntry = ({ refreshTrigger }) => {
                         <i className="bi bi-gear me-2"></i>
                         Advanced Time Segment Editor
                       </h6>
-                      <div className={`border rounded p-3 ${isDarkMode ? 'bg-secondary border-secondary' : 'bg-light'}`}>
+                      <div className={`border rounded p-3 ${isDarkMode ? 'bg-dark border-secondary' : 'bg-light'}`}>
                         <TimeSegmentEntry
                           existingSegments={editingShift ? JSON.parse(editingShift.timeSegments || '[]') : []}
                           onSubmit={handleSubmitTimeSegments}
