@@ -800,6 +800,9 @@ function doPost(e) {
       case 'updateShiftSegments':
         response = updateShiftSegments(data);
         break;
+      case 'DELETE_SHIFT':
+        response = deleteShift(data.shiftId);
+        break;
       case 'syncCompleteShift':
         response = syncCompleteShift(data);
         break;
