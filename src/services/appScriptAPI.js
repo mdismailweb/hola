@@ -2741,6 +2741,30 @@ export const isCrossMidnightTimeRange = (startTime, endTime) => {
 };
 
 /**
+ * Deletes a shift by its ID
+ */
+export const deleteShift = async (shiftId) => {
+  try {
+    console.log(`🗑️ Requesting to delete shift: ${shiftId}`);
+    const response = await makeAPICall({
+      action: 'DELETE_SHIFT',
+      shiftId: shiftId
+    });
+
+    if (response.success) {
+      console.log('✅ Delete shift successful:', response);
+    } else {
+      console.error('❌ Delete shift failed:', response.message);
+    }
+
+    return response;
+  } catch (error) {
+    console.error('❌ Delete shift error:', error);
+    return { success: false, message: error.message };
+  }
+};
+
+/**
  * Enhanced getCurrentShift that checks for cross-midnight shifts
  * Safe wrapper around existing getCurrentShift
  */

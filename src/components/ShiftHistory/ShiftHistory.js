@@ -9,7 +9,8 @@ import {
   fixShiftStatus,
   detectCrossMidnightShift,
   isCrossMidnightShift,
-  getDayNameFromDate
+  getDayNameFromDate,
+  deleteShift
 } from '../../services/appScriptAPI';
 import TimeSegmentEntry from '../TimeSegmentEntry/TimeSegmentEntry';
 import CustomTimePicker from '../CustomTimePicker/CustomTimePicker';
@@ -498,6 +499,41 @@ const ShiftHistory = ({ refreshTrigger }) => {
 
     return { realEndTime, realTotalDuration };
   }, []);
+
+  // 🗑️ DELETE SHIFT HANDLER
+  const handleDeleteShift = async (shift) => {
+    const shiftId = shift.shiftId || shift.id;
+    if (!shiftId) {
+      setError('Cannot delete shift: Missing Shift ID');
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to delete this shift?\nDate: ${formatDate(shift.shiftDate || shift.date)}\nID: ${shiftId}\n\nThis cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      setMessage('🗑️ Deleting shift...');
+      // Optimistically UI update not truly possible safely without ID from deleted list, so we wait or just reload
+      // But we can show a spinner? defaulting to loading state
+      setLoading(true);
+
+      const response = await deleteShift(shiftId);
+
+      if (response.success) {
+        setMessage(`✅ Shift ${shiftId} deleted successfully`);
+        // Refresh the list from server to ensure sync
+        loadShiftHistory(true);
+      } else {
+        setError(`Failed to delete shift: ${response.message}`);
+        setLoading(false);
+      }
+    } catch (err) {
+      console.error('Delete error:', err);
+      setError(`Delete failed: ${err.message}`);
+      setLoading(false);
+    }
+  };
 
   const handleEditShift = async (shift) => {
     console.log('📝 Edit shift clicked:', shift);
@@ -1042,6 +1078,14 @@ const ShiftHistory = ({ refreshTrigger }) => {
                               <i className="bi bi-eye me-1"></i>
                               Details
                             </button>
+                            <button
+                              className="btn btn-outline-danger btn-sm flex-fill"
+                              onClick={() => handleDeleteShift(shift)}
+                              title="Delete shift"
+                            >
+                              <i className="bi bi-trash me-1"></i>
+                              Delete
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -1138,6 +1182,13 @@ const ShiftHistory = ({ refreshTrigger }) => {
                                 }}
                               >
                                 <i className="bi bi-eye"></i>
+                              </button>
+                              <button
+                                className="btn btn-outline-danger btn-sm"
+                                onClick={() => handleDeleteShift(shift)}
+                                title="Delete shift"
+                              >
+                                <i className="bi bi-trash"></i>
                               </button>
                             </div>
                           </td>

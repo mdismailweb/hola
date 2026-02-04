@@ -10,7 +10,8 @@ import {
   fixShiftStatus,
   getShifts,
   updateShiftWithEditTracking,
-  getDayNameFromDate
+  getDayNameFromDate,
+  deleteShift
 } from '../../services/appScriptAPI';
 import TimeSegmentEntry from '../TimeSegmentEntry/TimeSegmentEntry';
 import CustomTimePicker from '../CustomTimePicker/CustomTimePicker';
@@ -529,6 +530,39 @@ const ShiftEntry = ({ refreshTrigger }) => {
       window.removeEventListener('forceShiftRefresh', handleConsoleRefresh);
     };
   }, [user, loadCurrentShiftStatus]);
+
+  // 🗑️ DELETE SHIFT HANDLER
+  const handleDeleteShift = async (shift) => {
+    const shiftId = shift.shiftId || shift.id;
+    if (!shiftId) {
+      alert('Cannot delete shift: Missing Shift ID');
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to delete this shift?\nDate: ${formatDate(shift.shiftDate || shift.date)}\nID: ${shiftId}\n\nThis cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      setMessage('🗑️ Deleting shift...');
+      setLoading(true);
+
+      const response = await deleteShift(shiftId);
+
+      if (response.success) {
+        setMessage(`✅ Shift ${shiftId} deleted successfully`);
+        // Refresh the list
+        loadCurrentShiftStatus();
+      } else {
+        alert(`Failed to delete shift: ${response.message}`);
+        setLoading(false);
+      }
+    } catch (err) {
+      console.error('Delete error:', err);
+      alert(`Delete failed: ${err.message}`);
+      setLoading(false);
+    }
+  };
 
   // Handle edit shift (open modal)
   const handleEditShift = (shift) => {
@@ -1053,6 +1087,15 @@ const ShiftEntry = ({ refreshTrigger }) => {
                               >
                                 <i className="bi bi-list-task"></i>
                               </button>
+                              <button
+                                className="btn btn-sm btn-outline-danger"
+                                onClick={() => handleDeleteShift(existingShift)}
+                                title="Delete Shift"
+                                style={{ borderRadius: '10px', padding: '8px 12px' }}
+                              >
+                                <i className="bi bi-trash"></i>
+                              </button>
+
                             </div>
                           </div>
                         ) : (
@@ -1169,20 +1212,34 @@ const ShiftEntry = ({ refreshTrigger }) => {
                           </td>
                           <td>
                             {existingShift ? (
-                              <button
-                                className={`btn btn-sm btn-shine ${isCompleted ? 'btn-outline-success' : 'btn-primary'
-                                  }`}
-                                onClick={() => handleEditShift(existingShift)}
-                                disabled={saving}
-                                style={{
-                                  borderRadius: '8px',
-                                  fontWeight: '600',
-                                  padding: '6px 16px'
-                                }}
-                              >
-                                <i className={`bi ${isCompleted ? 'bi-eye' : 'bi-pencil'} me-1`}></i>
-                                {isCompleted ? 'View' : 'Edit'}
-                              </button>
+                              <div className="d-flex gap-1">
+                                <button
+                                  className={`btn btn-sm btn-shine ${isCompleted ? 'btn-outline-success' : 'btn-primary'
+                                    }`}
+                                  onClick={() => handleEditShift(existingShift)}
+                                  disabled={saving}
+                                  style={{
+                                    borderRadius: '8px',
+                                    fontWeight: '600',
+                                    padding: '6px 16px'
+                                  }}
+                                >
+                                  <i className={`bi ${isCompleted ? 'bi-eye' : 'bi-pencil'} me-1`}></i>
+                                  {isCompleted ? 'View' : 'Edit'}
+                                </button>
+                                <button
+                                  className="btn btn-sm btn-outline-danger"
+                                  onClick={() => handleDeleteShift(existingShift)}
+                                  title="Delete Shift"
+                                  style={{
+                                    borderRadius: '8px',
+                                    fontWeight: '600',
+                                    padding: '6px 12px'
+                                  }}
+                                >
+                                  <i className="bi bi-trash"></i>
+                                </button>
+                              </div>
                             ) : (
                               <button
                                 className="btn btn-sm btn-shine"
