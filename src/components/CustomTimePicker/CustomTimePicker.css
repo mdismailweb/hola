@@ -230,3 +230,74 @@
     font-size: 32px;
   }
 }
+
+/* Dark Mode Styles */
+.dark-mode .custom-time-picker-modal {
+  background: #1a1a1a;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+  border: 1px solid #333;
+}
+
+.dark-mode .time-picker-header h5 {
+  color: #00d9ff;
+}
+
+.dark-mode .close-btn {
+  color: #aaa;
+}
+
+.dark-mode .close-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.dark-mode .time-display {
+  background: linear-gradient(135deg, #1e3a5f 0%, #162c44 100%);
+  color: #00d9ff;
+}
+
+.dark-mode .selection-indicator {
+  background: rgba(0, 217, 255, 0.2);
+}
+
+.dark-mode .time-item {
+  color: #666;
+}
+
+.dark-mode .time-item.selected {
+  color: #00d9ff;
+}
+
+.dark-mode .time-item:hover {
+  color: #00d9ff;
+}
+
+.dark-mode .period-btn {
+  border-color: #00d9ff;
+  background: transparent;
+  color: #00d9ff;
+}
+
+.dark-mode .period-btn.active {
+  background: #00d9ff;
+  color: #1a1a1a;
+}
+
+.dark-mode .cancel-btn {
+  background: #333;
+  color: #ccc;
+  border-color: #444;
+}
+
+.dark-mode .cancel-btn:hover {
+  background: #444;
+}
+
+.dark-mode .done-btn {
+  background: #00d9ff;
+  color: #1a1a1a;
+}
+
+.dark-mode .done-btn:hover {
+  background: #00b8d4;
+  box-shadow: 0 4px 12px rgba(0, 217, 255, 0.4);
+}

@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTheme } from '../../contexts/ThemeContext';
 import './CustomTimePicker.css';
 
 const CustomTimePicker = ({ title = "Start Time", initialTime = "12:00", onConfirm, onCancel }) => {
+  const { isDarkMode } = useTheme();
   const [selectedHour, setSelectedHour] = useState(12);
   const [selectedMinute, setSelectedMinute] = useState(0);
   const [period, setPeriod] = useState('AM');
-  
+
   const hourScrollRef = useRef(null);
   const minuteScrollRef = useRef(null);
 
@@ -16,7 +18,7 @@ const CustomTimePicker = ({ title = "Start Time", initialTime = "12:00", onConfi
       if (match) {
         let hour = parseInt(match[1]);
         const minute = parseInt(match[2]);
-        
+
         // Convert 24-hour to 12-hour format
         if (hour === 0) {
           hour = 12;
@@ -29,7 +31,7 @@ const CustomTimePicker = ({ title = "Start Time", initialTime = "12:00", onConfi
           hour = hour - 12;
           setPeriod('PM');
         }
-        
+
         setSelectedHour(hour);
         setSelectedMinute(minute);
       }
@@ -38,7 +40,7 @@ const CustomTimePicker = ({ title = "Start Time", initialTime = "12:00", onConfi
 
   // Generate hours 1-12
   const hours = Array.from({ length: 12 }, (_, i) => i + 1);
-  
+
   // Generate minutes 00-59
   const minutes = Array.from({ length: 60 }, (_, i) => i);
 
@@ -50,7 +52,7 @@ const CustomTimePicker = ({ title = "Start Time", initialTime = "12:00", onConfi
     const scrollTop = container.scrollTop;
     const index = Math.round(scrollTop / itemHeight);
     const value = items[index];
-    
+
     if (value !== undefined && value !== selectedValue) {
       setValue(value);
     }
@@ -81,7 +83,7 @@ const CustomTimePicker = ({ title = "Start Time", initialTime = "12:00", onConfi
     } else {
       if (selectedHour !== 12) hour24 = selectedHour + 12;
     }
-    
+
     const timeString = `${hour24.toString().padStart(2, '0')}:${selectedMinute.toString().padStart(2, '0')}`;
     onConfirm(timeString);
   };
@@ -89,7 +91,7 @@ const CustomTimePicker = ({ title = "Start Time", initialTime = "12:00", onConfi
   const displayTime = `${selectedHour}:${selectedMinute.toString().padStart(2, '0')} ${period}`;
 
   return (
-    <div className="custom-time-picker-overlay">
+    <div className={`custom-time-picker-overlay ${isDarkMode ? 'dark-mode' : ''}`}>
       <div className="custom-time-picker-modal">
         <div className="time-picker-header">
           <h5>{title}</h5>
@@ -106,8 +108,8 @@ const CustomTimePicker = ({ title = "Start Time", initialTime = "12:00", onConfi
           <div className="time-selector-wrapper">
             {/* Hour Selector */}
             <div className="time-column">
-              <div 
-                className="scroll-container" 
+              <div
+                className="scroll-container"
                 ref={hourScrollRef}
                 onScroll={() => handleScroll(hourScrollRef, hours, setSelectedHour, selectedHour)}
               >
@@ -137,8 +139,8 @@ const CustomTimePicker = ({ title = "Start Time", initialTime = "12:00", onConfi
 
             {/* Minute Selector */}
             <div className="time-column">
-              <div 
-                className="scroll-container" 
+              <div
+                className="scroll-container"
                 ref={minuteScrollRef}
                 onScroll={() => handleScroll(minuteScrollRef, minutes, setSelectedMinute, selectedMinute)}
               >
@@ -171,13 +173,13 @@ const CustomTimePicker = ({ title = "Start Time", initialTime = "12:00", onConfi
 
         {/* AM/PM Toggle */}
         <div className="period-toggle">
-          <button 
+          <button
             className={`period-btn ${period === 'AM' ? 'active' : ''}`}
             onClick={() => setPeriod('AM')}
           >
             AM
           </button>
-          <button 
+          <button
             className={`period-btn ${period === 'PM' ? 'active' : ''}`}
             onClick={() => setPeriod('PM')}
           >

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import {
   getShifts,
   handleAPIError,
@@ -18,6 +19,7 @@ import { formatTime12Hour } from '../../utils/timeFormat';
 
 const ShiftHistory = ({ refreshTrigger }) => {
   const { user } = useAuth();
+  const { isDarkMode } = useTheme();
   const [shifts, setShifts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -1228,8 +1230,8 @@ const ShiftHistory = ({ refreshTrigger }) => {
       {editingShift && (
         <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
           <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content">
-              <div className="modal-header">
+            <div className={`modal-content ${isDarkMode ? 'bg-dark text-light border-secondary' : ''}`}>
+              <div className={`modal-header ${isDarkMode ? 'border-secondary' : ''}`}>
                 <h5 className="modal-title">
                   <i className="bi bi-pencil-square me-2"></i>
                   Edit Shift Times
@@ -1275,7 +1277,7 @@ const ShiftHistory = ({ refreshTrigger }) => {
                     ) : (
                       <input
                         type="time"
-                        className="form-control"
+                        className={`form-control ${isDarkMode ? 'bg-secondary text-white border-secondary' : ''}`}
                         value={editFormData.firstStartTime}
                         onChange={(e) => setEditFormData({ ...editFormData, firstStartTime: e.target.value })}
                         disabled={saving}
@@ -1288,16 +1290,16 @@ const ShiftHistory = ({ refreshTrigger }) => {
                     <label className="form-label">End Time</label>
                     {isMobileView ? (
                       <div
-                        className="form-control"
+                        className={`form-control ${isDarkMode ? 'bg-secondary text-white border-secondary' : ''}`}
                         onClick={() => !saving && handleMobileTimeClick('lastEndTime', editFormData.lastEndTime)}
-                        style={{ cursor: saving ? 'default' : 'pointer', backgroundColor: saving ? '#e9ecef' : '#fff' }}
+                        style={{ cursor: saving ? 'default' : 'pointer', backgroundColor: saving ? (isDarkMode ? '#343a40' : '#e9ecef') : (isDarkMode ? '#495057' : '#fff') }}
                       >
                         {editFormData.lastEndTime || 'Select Time'}
                       </div>
                     ) : (
                       <input
                         type="time"
-                        className="form-control"
+                        className={`form-control ${isDarkMode ? 'bg-secondary text-white border-secondary' : ''}`}
                         value={editFormData.lastEndTime}
                         onChange={(e) => setEditFormData({ ...editFormData, lastEndTime: e.target.value })}
                         disabled={saving}
@@ -1308,7 +1310,7 @@ const ShiftHistory = ({ refreshTrigger }) => {
                 </div>
 
                 {editFormData.firstStartTime && editFormData.lastEndTime && (
-                  <div className="mt-3 p-3 bg-light rounded">
+                  <div className={`mt-3 p-3 rounded ${isDarkMode ? 'bg-secondary text-white' : 'bg-light'}`}>
                     <div className="d-flex justify-content-between align-items-center">
                       <span>Calculated Duration:</span>
                       <strong className="text-primary">
@@ -1325,7 +1327,7 @@ const ShiftHistory = ({ refreshTrigger }) => {
                       <i className="bi bi-gear me-2"></i>
                       Advanced Time Segment Editor
                     </h6>
-                    <div className="border rounded p-3 bg-light">
+                    <div className={`border rounded p-3 ${isDarkMode ? 'bg-secondary border-secondary' : 'bg-light'}`}>
                       <TimeSegmentEntry
                         existingSegments={editingShift ? JSON.parse(editingShift.timeSegments || '[]') : []}
                         onSubmit={handleAdvancedEdit}
@@ -1354,7 +1356,7 @@ const ShiftHistory = ({ refreshTrigger }) => {
                   </small>
                 </div>
               </div>
-              <div className="modal-footer">
+              <div className={`modal-footer ${isDarkMode ? 'border-secondary' : ''}`}>
                 <button
                   type="button"
                   className="btn btn-secondary"

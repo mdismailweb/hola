@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { formatTime12Hour } from '../../utils/timeFormat';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import {
   handleAPIError,
   makeAPICall,
@@ -18,6 +19,7 @@ import CustomTimePicker from '../CustomTimePicker/CustomTimePicker';
 
 const ShiftEntry = ({ refreshTrigger }) => {
   const { user } = useAuth();
+  const { isDarkMode } = useTheme();
   const [shifts, setShifts] = useState([]);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -1480,24 +1482,24 @@ const ShiftEntry = ({ refreshTrigger }) => {
         {viewingSegments && (
           <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
             <div className="modal-dialog modal-dialog-centered">
-              <div className="modal-content">
-                <div className="modal-header bg-light">
+              <div className={`modal-content ${isDarkMode ? 'bg-dark text-light border-secondary' : ''}`}>
+                <div className={`modal-header ${isDarkMode ? 'bg-dark border-secondary' : 'bg-light'}`}>
                   <h5 className="modal-title">
                     <i className="bi bi-clock-history me-2"></i>
                     Shift Segments
                   </h5>
-                  <button type="button" className="btn-close" onClick={() => setViewingSegments(null)}></button>
+                  <button type="button" className={`btn-close ${isDarkMode ? 'btn-close-white' : ''}`} onClick={() => setViewingSegments(null)}></button>
                 </div>
                 <div className="modal-body p-0">
-                  <div className="p-3 bg-light border-bottom">
+                  <div className={`p-3 border-bottom ${isDarkMode ? 'bg-dark border-secondary' : 'bg-light'}`}>
                     <div className="d-flex justify-content-between">
                       <div><strong>Date:</strong> {formatDate(viewingSegments.shiftDate || viewingSegments.date)}</div>
                       <div><strong>Total:</strong> {formatDuration(viewingSegments.totalDuration)} hrs</div>
                     </div>
                   </div>
                   <div className="table-responsive">
-                    <table className="table table-striped mb-0">
-                      <thead className="table-light">
+                    <table className={`table mb-0 ${isDarkMode ? 'table-dark' : 'table-striped'}`}>
+                      <thead className={isDarkMode ? 'table-dark' : 'table-light'}>
                         <tr>
                           <th>Start</th>
                           <th>End</th>
@@ -1522,7 +1524,7 @@ const ShiftEntry = ({ refreshTrigger }) => {
                     </table>
                   </div>
                 </div>
-                <div className="modal-footer">
+                <div className={`modal-footer ${isDarkMode ? 'border-secondary' : ''}`}>
                   <button type="button" className="btn btn-secondary" onClick={() => setViewingSegments(null)}>Close</button>
                 </div>
               </div>
