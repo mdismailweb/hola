@@ -1582,7 +1582,7 @@ const ShiftEntry = ({ refreshTrigger }) => {
                             justifyContent: 'space-between'
                           }}
                         >
-                          <span>{editFormData.firstStartTime || 'Select time'}</span>
+                          <span>{formatTime12Hour(editFormData.firstStartTime) || 'Select time'}</span>
                           <i className="bi bi-clock"></i>
                         </div>
                       ) : (
@@ -1610,7 +1610,7 @@ const ShiftEntry = ({ refreshTrigger }) => {
                             justifyContent: 'space-between'
                           }}
                         >
-                          <span>{editFormData.lastEndTime || 'Select time'}</span>
+                          <span>{formatTime12Hour(editFormData.lastEndTime) || 'Select time'}</span>
                           <i className="bi bi-clock"></i>
                         </div>
                       ) : (

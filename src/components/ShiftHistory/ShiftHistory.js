@@ -1272,7 +1272,7 @@ const ShiftHistory = ({ refreshTrigger }) => {
                         onClick={() => !saving && handleMobileTimeClick('firstStartTime', editFormData.firstStartTime)}
                         style={{ cursor: saving ? 'default' : 'pointer', backgroundColor: saving ? (isDarkMode ? '#343a40' : '#e9ecef') : (isDarkMode ? '#495057' : '#fff') }}
                       >
-                        {editFormData.firstStartTime || 'Select Time'}
+                        {formatTime12Hour(editFormData.firstStartTime) || 'Select Time'}
                       </div>
                     ) : (
                       <input
@@ -1294,7 +1294,7 @@ const ShiftHistory = ({ refreshTrigger }) => {
                         onClick={() => !saving && handleMobileTimeClick('lastEndTime', editFormData.lastEndTime)}
                         style={{ cursor: saving ? 'default' : 'pointer', backgroundColor: saving ? (isDarkMode ? '#343a40' : '#e9ecef') : (isDarkMode ? '#495057' : '#fff') }}
                       >
-                        {editFormData.lastEndTime || 'Select Time'}
+                        {formatTime12Hour(editFormData.lastEndTime) || 'Select Time'}
                       </div>
                     ) : (
                       <input
