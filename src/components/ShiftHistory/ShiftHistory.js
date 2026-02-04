@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { 
-  getShifts, 
-  handleAPIError, 
+import {
+  getShifts,
+  handleAPIError,
   updateShiftWithEditTracking,
   submitTimeSegments,
   applyFrontendSmartStatus,
@@ -12,6 +12,7 @@ import {
   getDayNameFromDate
 } from '../../services/appScriptAPI';
 import TimeSegmentEntry from '../TimeSegmentEntry/TimeSegmentEntry';
+import CustomTimePicker from '../CustomTimePicker/CustomTimePicker';
 
 const ShiftHistory = ({ refreshTrigger }) => {
   const { user } = useAuth();
@@ -31,23 +32,37 @@ const ShiftHistory = ({ refreshTrigger }) => {
   const [lastRefreshDate, setLastRefreshDate] = useState(new Date().toDateString());
   const [refreshInterval, setRefreshInterval] = useState(null);
 
+  // Mobile Time Picker State
+  const [isMobileView, setIsMobileView] = useState(window.innerWidth < 768);
+  const [showMobileTimePicker, setShowMobileTimePicker] = useState(false);
+  const [pickerConfig, setPickerConfig] = useState({ field: null, initialTime: '' });
+
+  // Mobile detection listener
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobileView(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // 🔥 EXACT COPY OF SHIFT ENTRY'S SMART STATUS LOGIC
   const determineSmartStatus = (shiftData) => {
     console.log('🧮 ShiftHistory - Calculating smart status (EXACT SHIFT ENTRY LOGIC):', shiftData);
-    
+
     if (!shiftData || !shiftData.segments) {
       console.log('📝 No shift data or segments - DRAFT');
       return 'DRAFT';
     }
-    
+
     const segments = shiftData.segments;
     const now = new Date();
-    const currentTime = now.toLocaleTimeString('en-US', { 
-      hour12: false, 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    const currentTime = now.toLocaleTimeString('en-US', {
+      hour12: false,
+      hour: '2-digit',
+      minute: '2-digit'
     });
-    
+
     console.log('⏰ Current time:', currentTime);
     console.log('📋 Segments:', segments);
 
@@ -63,15 +78,15 @@ const ShiftHistory = ({ refreshTrigger }) => {
     };
 
     const currentTimeMinutes = timeToMinutes(currentTime);
-    
+
     // Get the actual start and end times from segments
     const firstSegment = segments[0];
     const lastSegment = segments[segments.length - 1];
-    
+
     if (firstSegment && firstSegment.startTime) {
       const firstStartMinutes = timeToMinutes(firstSegment.startTime);
       console.log('🚀 First start time:', firstSegment.startTime, '=', firstStartMinutes, 'minutes');
-      
+
       // Check if shift hasn't started yet
       if (currentTimeMinutes < firstStartMinutes) {
         console.log('⚫ Before start time - OFFLINE');
@@ -82,7 +97,7 @@ const ShiftHistory = ({ refreshTrigger }) => {
     // Check for active segments (segments without end time)
     const hasActiveSegment = segments.some(seg => !seg.endTime);
     console.log('🔄 Has active segment (no end time):', hasActiveSegment);
-    
+
     if (hasActiveSegment) {
       console.log('🟢 Active segment detected - ACTIVE');
       return 'ACTIVE';
@@ -93,7 +108,7 @@ const ShiftHistory = ({ refreshTrigger }) => {
       const lastEndMinutes = timeToMinutes(lastSegment.endTime);
       console.log('🏁 Last end time:', lastSegment.endTime, '=', lastEndMinutes, 'minutes');
       console.log('⏰ Comparison: current', currentTimeMinutes, 'vs end', lastEndMinutes);
-      
+
       if (currentTimeMinutes < lastEndMinutes) {
         console.log('🟢 Current time before end time - should be ACTIVE');
         return 'ACTIVE';
@@ -139,7 +154,7 @@ const ShiftHistory = ({ refreshTrigger }) => {
     };
 
     window.addEventListener('forceShiftRefresh', handleConsoleRefresh);
-    
+
     return () => {
       window.removeEventListener('forceShiftRefresh', handleConsoleRefresh);
     };
@@ -149,16 +164,16 @@ const ShiftHistory = ({ refreshTrigger }) => {
   useEffect(() => {
     if (shifts.length > 0) {
       console.log('🔍 Shift data structure debug:', shifts[0]);
-      
+
       // Debug: Check status for each shift
       shifts.forEach((shift, index) => {
         const shiftId = shift.shiftId || shift.id;
-        
+
         console.log(`🔍 Shift ${index + 1} (${shiftId}) status:`, {
           'status': shift.status,
           'lastUpdated': shift.lastUpdated
         });
-        
+
         const duration = shift.totalDuration || shift.totalHours || shift['Total Duration'] || shift['Total Hours'];
         if (!duration || duration === 0) {
           console.log(`⚠️ Shift ${index + 1} missing duration:`, {
@@ -180,27 +195,27 @@ const ShiftHistory = ({ refreshTrigger }) => {
   const loadShiftHistory = useCallback(async (forceFresh = false) => {
     setLoading(true);
     setError('');
-    
+
     try {
       console.log('🔄 Loading shift history for user:', user.id);
-      
+
       const response = await getShifts({
         employeeId: user.id,
         forceRefresh: forceFresh
       });
-      
+
       if (response.success && response.data) {
         console.log('✅ Shifts loaded successfully');
-        
+
         // Handle both array and single object responses
         const shiftsData = Array.isArray(response.data) ? response.data : [response.data];
-        
+
         console.log(`📅 SHIFT HISTORY: Received ${shiftsData.length} shifts - Checking for status inconsistencies`);
-        
+
         // 🏗️ DETECT & FIX: Check each shift for status inconsistencies and fix in Google Sheets
         let fixedShiftsCount = 0;
         const shiftsToFix = [];
-        
+
         for (const shift of shiftsData) {
           console.log(`🔍 CHECKING SHIFT ${shift.shiftId}:`, {
             originalStatus: shift.status,
@@ -208,7 +223,7 @@ const ShiftHistory = ({ refreshTrigger }) => {
             startTime: shift.firstStartTime,
             endTime: shift.lastEndTime
           });
-          
+
           const smartStatus = applyFrontendSmartStatus(shift);
           console.log(`📊 SMART STATUS RESULT:`, {
             shiftId: shift.shiftId,
@@ -217,7 +232,7 @@ const ShiftHistory = ({ refreshTrigger }) => {
             statusCorrected: smartStatus._statusCorrected,
             reason: smartStatus._correctionReason
           });
-          
+
           if (smartStatus._statusCorrected) {
             console.log(`❌ STATUS INCONSISTENCY DETECTED:`, {
               shiftId: shift.shiftId,
@@ -225,7 +240,7 @@ const ShiftHistory = ({ refreshTrigger }) => {
               correctedStatus: smartStatus.status,
               reason: smartStatus._correctionReason
             });
-            
+
             shiftsToFix.push({
               shiftId: shift.shiftId,
               correctedStatus: smartStatus.status,
@@ -233,11 +248,11 @@ const ShiftHistory = ({ refreshTrigger }) => {
             });
           }
         }
-        
+
         // Fix inconsistencies in Google Sheets
         if (shiftsToFix.length > 0) {
           console.log(`🔧 FIXING ${shiftsToFix.length} STATUS INCONSISTENCIES IN GOOGLE SHEETS...`);
-          
+
           for (const fixData of shiftsToFix) {
             try {
               const fixResponse = await fixShiftStatus({
@@ -245,7 +260,7 @@ const ShiftHistory = ({ refreshTrigger }) => {
                 correctStatus: fixData.correctedStatus,
                 reason: fixData.reason
               });
-              
+
               if (fixResponse.success) {
                 console.log(`✅ FIXED SHIFT ${fixData.shiftId} in Google Sheets`);
                 fixedShiftsCount++;
@@ -256,17 +271,17 @@ const ShiftHistory = ({ refreshTrigger }) => {
               console.error(`❌ ERROR fixing shift ${fixData.shiftId}:`, error);
             }
           }
-          
+
           // Get fresh data after fixes
           if (fixedShiftsCount > 0) {
             console.log(`🔄 RE-FETCHING: ${fixedShiftsCount} shifts fixed, getting fresh data...`);
-            
+
             const freshResponse = await getShifts({
               employeeId: user.id,
               forceRefresh: true,
               forceFresh: true
             });
-            
+
             if (freshResponse.success && freshResponse.data) {
               const freshShiftsData = Array.isArray(freshResponse.data) ? freshResponse.data : [freshResponse.data];
               const freshSortedShifts = freshShiftsData.sort((a, b) => {
@@ -274,14 +289,14 @@ const ShiftHistory = ({ refreshTrigger }) => {
                 const dateB = new Date(b.shiftDate || b.date);
                 return dateB - dateA;
               });
-              
+
               setShifts(freshSortedShifts);
               setMessage(`✅ ${fixedShiftsCount} shift status(es) corrected and ${freshSortedShifts.length} shifts loaded`);
               return;
             }
           }
         }
-        
+
         // Sort shifts by date (newest first) - original data or if no fixes needed
         const sortedShifts = shiftsData.sort((a, b) => {
           const dateA = new Date(a.shiftDate || a.date);
@@ -300,7 +315,7 @@ const ShiftHistory = ({ refreshTrigger }) => {
           }
           return shift;
         });
-        
+
         setShifts(enhancedShifts);
         setMessage(`✅ Loaded ${enhancedShifts.length} shifts${enhancedShifts.some(s => s._isCrossMidnight) ? ' (including cross-midnight shifts)' : ''}`);
       } else {
@@ -320,24 +335,24 @@ const ShiftHistory = ({ refreshTrigger }) => {
   // 🚀 AUTO-REFRESH: Detect date changes and refresh automatically
   useEffect(() => {
     if (!autoRefreshEnabled) return;
-    
+
     const checkDateAndRefresh = () => {
       const currentDate = new Date().toDateString();
-      
+
       if (currentDate !== lastRefreshDate) {
         console.log('📅 DATE CHANGED: Auto-refreshing shift statuses...', {
           previousDate: lastRefreshDate,
           currentDate: currentDate
         });
-        
+
         setLastRefreshDate(currentDate);
         loadShiftHistory(true); // Force fresh data on date change
       }
     };
-    
+
     // Check for date changes every minute
     const dateCheckInterval = setInterval(checkDateAndRefresh, 60000);
-    
+
     return () => clearInterval(dateCheckInterval);
   }, [autoRefreshEnabled, lastRefreshDate, loadShiftHistory]);
 
@@ -351,45 +366,45 @@ const ShiftHistory = ({ refreshTrigger }) => {
   // �🚀 AUTO-REFRESH: Detect date changes and refresh automatically
   useEffect(() => {
     if (!autoRefreshEnabled) return;
-    
+
     const checkDateAndRefresh = () => {
       const currentDate = new Date().toDateString();
-      
+
       if (currentDate !== lastRefreshDate) {
         console.log('📅 DATE CHANGED: Auto-refreshing shift statuses...', {
           previousDate: lastRefreshDate,
           currentDate: currentDate
         });
-        
+
         setLastRefreshDate(currentDate);
         loadShiftHistory(true); // Force fresh data on date change
       }
     };
-    
+
     // Check for date changes every minute
     const dateCheckInterval = setInterval(checkDateAndRefresh, 60000);
-    
+
     return () => clearInterval(dateCheckInterval);
   }, [autoRefreshEnabled, lastRefreshDate, loadShiftHistory]);
-  
+
   // 🔄 PERIODIC REFRESH: Update statuses every 5 minutes (only when not editing)
   useEffect(() => {
     if (!autoRefreshEnabled || editingShift) return; // Don't refresh while editing
-    
+
     const periodicRefresh = setInterval(() => {
       console.log('🔄 PERIODIC REFRESH: Updating shift statuses...');
       loadShiftHistory(true);
     }, 5 * 60 * 1000); // 5 minutes
-    
+
     setRefreshInterval(periodicRefresh);
-    
+
     return () => {
       if (periodicRefresh) {
         clearInterval(periodicRefresh);
       }
     };
   }, [autoRefreshEnabled, loadShiftHistory, editingShift]);
-  
+
   // 🎯 VISIBILITY CHANGE: Refresh when user returns to tab
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -398,9 +413,9 @@ const ShiftHistory = ({ refreshTrigger }) => {
         loadShiftHistory(true);
       }
     };
-    
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
+
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
@@ -413,17 +428,17 @@ const ShiftHistory = ({ refreshTrigger }) => {
 
   const calculateDuration = useCallback((startTime, endTime) => {
     if (!startTime || !endTime) return 0;
-    
+
     try {
       const start = new Date(`1970-01-01T${startTime}:00`);
       const end = new Date(`1970-01-01T${endTime}:00`);
       let diffMs = end - start;
-      
+
       // Handle overnight shifts
       if (diffMs < 0) {
         diffMs += 24 * 60 * 60 * 1000;
       }
-      
+
       const hours = diffMs / (1000 * 60 * 60);
       return Math.round(hours * 100) / 100;
     } catch (error) {
@@ -485,9 +500,9 @@ const ShiftHistory = ({ refreshTrigger }) => {
 
   const handleEditShift = async (shift) => {
     console.log('📝 Edit shift clicked:', shift);
-    
+
     setEditingShift(shift);
-    
+
     // Debug: Log the shift data to see what properties are available
     console.log('🔍 Edit shift data:', shift);
     console.log('📝 Available time properties:', {
@@ -498,16 +513,16 @@ const ShiftHistory = ({ refreshTrigger }) => {
       endTime: shift.endTime,
       'End Time': shift['End Time']
     });
-    
+
     // Helper function to extract HH:MM from various time formats
     const extractTime = (timeValue) => {
       if (!timeValue) return '';
-      
+
       // If it's already in HH:MM format, return as-is
       if (typeof timeValue === 'string' && /^\d{2}:\d{2}$/.test(timeValue)) {
         return timeValue;
       }
-      
+
       // Handle Google Sheets Date objects (1899-12-30 epoch)
       if (timeValue instanceof Date || (typeof timeValue === 'string' && timeValue.includes('1899-12-30'))) {
         const date = new Date(timeValue);
@@ -516,30 +531,30 @@ const ShiftHistory = ({ refreshTrigger }) => {
         const minutes = date.getUTCMinutes().toString().padStart(2, '0');
         return `${hours}:${minutes}`;
       }
-      
+
       // If it's an ISO date string, extract the time part
       if (typeof timeValue === 'string' && timeValue.includes('T')) {
         const date = new Date(timeValue);
-        return date.toLocaleTimeString('en-US', { 
-          hour12: false, 
-          hour: '2-digit', 
+        return date.toLocaleTimeString('en-US', {
+          hour12: false,
+          hour: '2-digit',
           minute: '2-digit',
           timeZone: 'Asia/Calcutta'
         });
       }
-      
+
       return '';
     };
-    
+
     // Try to get times from segments first if main times are problematic
     let startTime = '';
     let endTime = '';
-    
+
     if (shift.segments && shift.segments.length > 0) {
       // Use the first segment's start time and last segment's end time
       const firstSegment = shift.segments[0];
       const lastSegment = shift.segments[shift.segments.length - 1];
-      
+
       startTime = firstSegment.startTime || extractTime(shift.firstStartTime || shift.startTime || shift['Start Time']);
       endTime = lastSegment.endTime || extractTime(shift.lastEndTime || shift.endTime || shift['End Time']);
     } else {
@@ -547,14 +562,38 @@ const ShiftHistory = ({ refreshTrigger }) => {
       startTime = extractTime(shift.firstStartTime || shift.startTime || shift['Start Time']);
       endTime = extractTime(shift.lastEndTime || shift.endTime || shift['End Time']);
     }
-    
+
     console.log('🕐 Extracted times:', { startTime, endTime });
-    
+
     setEditFormData({
       firstStartTime: startTime,
       lastEndTime: endTime,
       shiftType: shift.shiftType || shift['Shift Type'] || 'Regular'
     });
+  };
+
+  // Mobile Time Picker Handlers
+  const handleMobileTimeClick = (field, currentTime) => {
+    if (isMobileView) {
+      setPickerConfig({
+        field,
+        initialTime: currentTime
+      });
+      setShowMobileTimePicker(true);
+    }
+  };
+
+  const handleMobileTimeConfirm = (timeString) => {
+    if (pickerConfig.field) {
+      setEditFormData({ ...editFormData, [pickerConfig.field]: timeString });
+    }
+    setShowMobileTimePicker(false);
+    setPickerConfig({ field: null, initialTime: '' });
+  };
+
+  const handleMobileTimeCancel = () => {
+    setShowMobileTimePicker(false);
+    setPickerConfig({ field: null, initialTime: '' });
   };
 
   const handleCancelEdit = () => {
@@ -616,7 +655,7 @@ const ShiftHistory = ({ refreshTrigger }) => {
         status: 'ACTIVE'
       };
       const calculatedStatus = determineSmartStatus(mockShiftData);
-      
+
       console.log(`📊 History Regular Edit - Smart status calculated: ${calculatedStatus}`);
 
       // Use the edit tracking system with EXACT SHIFT ENTRY COLUMN UPDATES
@@ -639,14 +678,14 @@ const ShiftHistory = ({ refreshTrigger }) => {
 
       if (response.success) {
         setMessage('✅ Shift updated successfully in Google Sheets!');
-        
+
         // 🔄 Single fresh data reload after successful edit
         console.log('🔄 Loading fresh data after edit...');
-        
+
         const successMessage = '✅ Shift updated successfully!';
         alert(successMessage);
         handleCancelEdit();
-        
+
         // Single reload with delay to ensure backend processing
         setTimeout(() => {
           loadShiftHistory(true);
@@ -665,10 +704,10 @@ const ShiftHistory = ({ refreshTrigger }) => {
   // Handle advanced time segment editing - EXACT SHIFT ENTRY PATTERN
   const handleAdvancedEdit = async (segments, scheduleInfo = {}) => {
     if (!editingShift) return;
-    
+
     setSaving(true);
     setMessage(''); // Clear message like ShiftEntry
-    
+
     if (!user || !user.name || !user.id) {
       setMessage('Error: User information not available.');
       setSaving(false);
@@ -684,7 +723,7 @@ const ShiftHistory = ({ refreshTrigger }) => {
         shiftType: editingShift.shiftType || 'Regular',
         ...scheduleInfo
       };
-      
+
       // 🔥 CRITICAL: Pass existing shift ID if available for proper segment updates (EXACT SHIFT ENTRY LOGIC)
       if (editingShift && (editingShift.shiftId || editingShift.id)) {
         payload.existingShiftId = editingShift.shiftId || editingShift.id;
@@ -693,26 +732,26 @@ const ShiftHistory = ({ refreshTrigger }) => {
       } else {
         console.log('🆕 Creating new shift (no existing shift ID) - SHIFT ENTRY PATTERN');
       }
-      
+
       console.log('📤 ShiftHistory submitting segments with payload (SHIFT ENTRY PATTERN):', payload);
-      
+
       const response = await submitTimeSegments(payload);
 
       if (response.success) {
         setMessage('✅ Time segments updated successfully in Google Sheets!');
-        
+
         // � Force fresh data reload to show updated segments (EXACT SHIFT ENTRY PATTERN)
         console.log('🔄 Forcing fresh data reload after segment update (SHIFT ENTRY PATTERN)...');
         setTimeout(() => {
           loadShiftHistory(true); // Always force fresh like ShiftEntry
         }, 1000); // Small delay to ensure backend processing is complete
-        
+
         const successMessage = '✅ Time segments updated successfully in Google Sheets!';
-        
+
         alert(successMessage);
         handleCancelEdit();
         setShowAdvancedEdit(false);
-        
+
         console.log('🎯 SHIFT ENTRY PATTERN COMPLETE: UI now shows fresh sheet data');
       } else {
         setMessage('❌ Error: ' + response.message);
@@ -744,49 +783,49 @@ const ShiftHistory = ({ refreshTrigger }) => {
 
   const formatTime = (timeStr) => {
     if (!timeStr || timeStr === '-') return '-';
-    
+
     try {
       const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      
+
       // If it's already in HH:MM format, assume it's in server timezone and convert
       if (timeStr.match(/^\d{1,2}:\d{2}$/)) {
         // Create a date object for today with the server time
         const today = new Date().toISOString().split('T')[0];
         const serverDateTime = new Date(`${today}T${timeStr}:00`);
-        
+
         // Display in user's timezone
-        return serverDateTime.toLocaleTimeString('en-US', { 
-          hour: '2-digit', 
-          minute: '2-digit', 
+        return serverDateTime.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
           hour12: false,
           timeZone: userTimezone
         });
       }
-      
+
       // If it's a timestamp format like "1899-12-30T06:59:50.000Z"
       if (timeStr.includes('T')) {
         const date = new Date(timeStr);
         // Convert to user's timezone
-        return date.toLocaleTimeString('en-US', { 
-          hour: '2-digit', 
-          minute: '2-digit', 
+        return date.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
           hour12: false,
           timeZone: userTimezone
         });
       }
-      
+
       // If it's just a time string, try to parse it as server time
       const today = new Date().toISOString().split('T')[0];
       const date = new Date(`${today}T${timeStr}`);
       if (!isNaN(date.getTime())) {
-        return date.toLocaleTimeString('en-US', { 
-          hour: '2-digit', 
-          minute: '2-digit', 
+        return date.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
           hour12: false,
           timeZone: userTimezone
         });
       }
-      
+
       return timeStr;
     } catch (error) {
       console.error('Error formatting time:', timeStr, error);
@@ -831,10 +870,9 @@ const ShiftHistory = ({ refreshTrigger }) => {
               </small>
             </div>
             <div className="d-flex gap-2">
-              <button 
-                className={`btn btn-sm ${
-                  autoRefreshEnabled ? 'btn-success' : 'btn-outline-secondary'
-                }`}
+              <button
+                className={`btn btn-sm ${autoRefreshEnabled ? 'btn-success' : 'btn-outline-secondary'
+                  }`}
                 onClick={() => {
                   setAutoRefreshEnabled(!autoRefreshEnabled);
                   console.log('🔄 Auto-refresh:', !autoRefreshEnabled ? 'ENABLED' : 'DISABLED');
@@ -844,7 +882,7 @@ const ShiftHistory = ({ refreshTrigger }) => {
                 <i className="bi bi-arrow-clockwise me-1"></i>
                 {autoRefreshEnabled ? 'Auto ON' : 'Auto OFF'}
               </button>
-              <button 
+              <button
                 className="btn btn-outline-primary btn-sm"
                 onClick={() => loadShiftHistory(true)} // Force fresh data from Google Sheets
                 disabled={loading}
@@ -868,9 +906,9 @@ const ShiftHistory = ({ refreshTrigger }) => {
           {message && (
             <div className={`alert ${message.includes('✅') ? 'alert-success' : message.includes('❌') ? 'alert-danger' : 'alert-info'} alert-dismissible fade show`} role="alert">
               {message}
-              <button 
-                type="button" 
-                className="btn-close" 
+              <button
+                type="button"
+                className="btn-close"
                 onClick={() => setMessage('')}
                 aria-label="Close"
               ></button>
@@ -880,9 +918,9 @@ const ShiftHistory = ({ refreshTrigger }) => {
           {error && (
             <div className="alert alert-danger alert-dismissible fade show" role="alert">
               {error}
-              <button 
-                type="button" 
-                className="btn-close" 
+              <button
+                type="button"
+                className="btn-close"
                 onClick={() => setError('')}
                 aria-label="Close"
               ></button>
@@ -900,142 +938,140 @@ const ShiftHistory = ({ refreshTrigger }) => {
                 <div className="d-flex align-items-center">
                   <i className="bi bi-info-circle me-2"></i>
                   <div>
-                    <strong>Showing {shifts.length} shift{shifts.length !== 1 ? 's' : ''}</strong> - 
+                    <strong>Showing {shifts.length} shift{shifts.length !== 1 ? 's' : ''}</strong> -
                     No date restrictions applied. All your shifts are visible here.
                     <br />
                     <small className="text-muted">
-                      <i className="bi bi-pencil"></i> Edit any shift times • 
-                      <i className="bi bi-eye"></i> View details • 
+                      <i className="bi bi-pencil"></i> Edit any shift times •
+                      <i className="bi bi-eye"></i> View details •
                       Future shifts are fully accessible
                     </small>
                   </div>
                 </div>
               </div>
-              
+
               {/* Mobile Card View */}
               <div className="d-block d-md-none">
                 {shifts.map((shift, index) => {
                   // 🔧 Calculate real-time data for each shift
                   const { realEndTime, realTotalDuration } = calculateRealTimeDataFromSegments(shift);
-                  
+
                   return (
                     <div key={shift.id || index} className="card mb-3 border-start border-primary border-3">
-                    <div className="card-body p-3">
-                      <div className="d-flex justify-content-between align-items-start mb-2">
-                        <h6 className="card-title mb-0 text-primary">
-                          {formatDate(shift.shiftDate || shift.date)}
-                          <small className="text-muted ms-2">
-                            ({shift.day || getDayNameFromDate(shift.shiftDate || shift.date)})
-                          </small>
-                        </h6>
-                        <div className="d-flex flex-column gap-1 align-items-end">
-                          <span className={`badge ${
-                            shift.shiftType === 'Overtime' ? 'bg-warning text-dark' : 'bg-primary'
-                          }`}>
-                            {shift.shiftType || 'Regular'}
-                          </span>
-                          {(shift.updated === true || shift.updated === 'TRUE') && (
-                            <span className="badge bg-info text-dark" style={{fontSize: '0.7rem'}} title="This shift has been updated">
-                              <i className="bi bi-pencil-fill"></i> Updated
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="row g-2 text-sm">
-                        <div className="col-6">
-                          <small className="text-muted d-block">Shift ID</small>
-                          <span style={{fontSize: '0.8rem', fontFamily: 'monospace'}}>{shift.shiftId || shift.id || 'N/A'}</span>
-                        </div>
-                        <div className="col-6">
-                          <small className="text-muted d-block">Date</small>
-                          <span>
+                      <div className="card-body p-3">
+                        <div className="d-flex justify-content-between align-items-start mb-2">
+                          <h6 className="card-title mb-0 text-primary">
                             {formatDate(shift.shiftDate || shift.date)}
-                            {shift._isCrossMidnight && (
-                              <span className="badge bg-info ms-2" style={{fontSize: '0.7em'}}>
-                                Cross-Midnight
+                            <small className="text-muted ms-2">
+                              ({shift.day || getDayNameFromDate(shift.shiftDate || shift.date)})
+                            </small>
+                          </h6>
+                          <div className="d-flex flex-column gap-1 align-items-end">
+                            <span className={`badge ${shift.shiftType === 'Overtime' ? 'bg-warning text-dark' : 'bg-primary'
+                              }`}>
+                              {shift.shiftType || 'Regular'}
+                            </span>
+                            {(shift.updated === true || shift.updated === 'TRUE') && (
+                              <span className="badge bg-info text-dark" style={{ fontSize: '0.7rem' }} title="This shift has been updated">
+                                <i className="bi bi-pencil-fill"></i> Updated
                               </span>
                             )}
-                          </span>
+                          </div>
                         </div>
-                        <div className="col-6">
-                          <small className="text-muted d-block">Start Time</small>
-                          <span>
-                            {formatTime(shift.firstStartTime || shift.startTime)}
-                            {shift._isCrossMidnight && (
-                              <small className="text-info ms-1" style={{fontSize: '0.8em'}}>
-                                (prev day)
-                              </small>
-                            )}
-                          </span>
+                        <div className="row g-2 text-sm">
+                          <div className="col-6">
+                            <small className="text-muted d-block">Shift ID</small>
+                            <span style={{ fontSize: '0.8rem', fontFamily: 'monospace' }}>{shift.shiftId || shift.id || 'N/A'}</span>
+                          </div>
+                          <div className="col-6">
+                            <small className="text-muted d-block">Date</small>
+                            <span>
+                              {formatDate(shift.shiftDate || shift.date)}
+                              {shift._isCrossMidnight && (
+                                <span className="badge bg-info ms-2" style={{ fontSize: '0.7em' }}>
+                                  Cross-Midnight
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                          <div className="col-6">
+                            <small className="text-muted d-block">Start Time</small>
+                            <span>
+                              {formatTime(shift.firstStartTime || shift.startTime)}
+                              {shift._isCrossMidnight && (
+                                <small className="text-info ms-1" style={{ fontSize: '0.8em' }}>
+                                  (prev day)
+                                </small>
+                              )}
+                            </span>
+                          </div>
+                          <div className="col-6">
+                            <small className="text-muted d-block">End Time</small>
+                            <span>
+                              {formatTime(realEndTime)}
+                              {shift._isCrossMidnight && (
+                                <small className="text-info ms-1" style={{ fontSize: '0.8em' }}>
+                                  (next day)
+                                </small>
+                              )}
+                            </span>
+                          </div>
+                          <div className="col-6">
+                            <small className="text-muted d-block">Total Hours</small>
+                            <strong className="text-success">{formatDuration(
+                              realTotalDuration ||
+                              shift.totalHours ||
+                              shift['Total Duration'] ||
+                              shift['Total Hours'] ||
+                              // Fallback: calculate from segments if main duration is 0 or missing
+                              ((!shift.totalDuration || shift.totalDuration === 0) && shift.segments && shift.segments.length > 0
+                                ? shift.segments.reduce((total, seg) => total + (parseFloat(seg.duration) || 0), 0)
+                                : (shift.firstStartTime && shift.lastEndTime ? calculateDuration(shift.firstStartTime, shift.lastEndTime) : 0))
+                            )} hrs</strong>
+                          </div>
+                          <div className="col-6">
+                            <small className="text-muted d-block">Status</small>
+                            <span className={`badge badge-sm ${shift.status === 'COMPLETED' ? 'bg-success' :
+                              shift.status === 'ACTIVE' ? 'bg-primary' :
+                                shift.status === 'ON BREAK' ? 'bg-warning text-dark' :
+                                  shift.status === 'DRAFT' ? 'bg-secondary' : 'bg-light text-dark'
+                              }`}>
+                              {shift.status || 'Unknown'}
+                            </span>
+                          </div>
                         </div>
-                        <div className="col-6">
-                          <small className="text-muted d-block">End Time</small>
-                          <span>
-                            {formatTime(realEndTime)}
-                            {shift._isCrossMidnight && (
-                              <small className="text-info ms-1" style={{fontSize: '0.8em'}}>
-                                (next day)
-                              </small>
-                            )}
-                          </span>
-                        </div>
-                        <div className="col-6">
-                          <small className="text-muted d-block">Total Hours</small>
-                          <strong className="text-success">{formatDuration(
-                            realTotalDuration || 
-                            shift.totalHours || 
-                            shift['Total Duration'] ||
-                            shift['Total Hours'] ||
-                            // Fallback: calculate from segments if main duration is 0 or missing
-                            ((!shift.totalDuration || shift.totalDuration === 0) && shift.segments && shift.segments.length > 0 
-                              ? shift.segments.reduce((total, seg) => total + (parseFloat(seg.duration) || 0), 0)
-                              : (shift.firstStartTime && shift.lastEndTime ? calculateDuration(shift.firstStartTime, shift.lastEndTime) : 0))
-                          )} hrs</strong>
-                        </div>
-                        <div className="col-6">
-                          <small className="text-muted d-block">Status</small>
-                          <span className={`badge badge-sm ${
-                            shift.status === 'COMPLETED' ? 'bg-success' : 
-                            shift.status === 'ACTIVE' ? 'bg-primary' :
-                            shift.status === 'ON BREAK' ? 'bg-warning text-dark' :
-                            shift.status === 'DRAFT' ? 'bg-secondary' : 'bg-light text-dark'
-                          }`}>
-                            {shift.status || 'Unknown'}
-                          </span>
-                        </div>
-                      </div>
-                      {shift._isCrossMidnight && shift._crossMidnightNote && (
+                        {shift._isCrossMidnight && shift._crossMidnightNote && (
+                          <div className="mt-2">
+                            <small className="text-info d-flex align-items-center">
+                              <i className="bi bi-moon-stars me-1"></i>
+                              {shift._crossMidnightNote}
+                            </small>
+                          </div>
+                        )}
                         <div className="mt-2">
-                          <small className="text-info d-flex align-items-center">
-                            <i className="bi bi-moon-stars me-1"></i>
-                            {shift._crossMidnightNote}
-                          </small>
-                        </div>
-                      )}
-                      <div className="mt-2">
-                        <div className="d-flex gap-1">
-                          <button 
-                            className="btn btn-outline-primary btn-sm flex-fill"
-                            onClick={() => handleEditShift(shift)}
-                            disabled={false}
-                            title="Edit shift times"
-                          >
-                            <i className="bi bi-pencil me-1"></i>
-                            Edit Times
-                          </button>
-                          <button 
-                            className="btn btn-outline-info btn-sm flex-fill"
-                            onClick={() => {
-                              alert(`Shift details for ${formatDate(shift.shiftDate || shift.date)}`);
-                            }}
-                          >
-                            <i className="bi bi-eye me-1"></i>
-                            Details
-                          </button>
+                          <div className="d-flex gap-1">
+                            <button
+                              className="btn btn-outline-primary btn-sm flex-fill"
+                              onClick={() => handleEditShift(shift)}
+                              disabled={false}
+                              title="Edit shift times"
+                            >
+                              <i className="bi bi-pencil me-1"></i>
+                              Edit Times
+                            </button>
+                            <button
+                              className="btn btn-outline-info btn-sm flex-fill"
+                              onClick={() => {
+                                alert(`Shift details for ${formatDate(shift.shiftDate || shift.date)}`);
+                              }}
+                            >
+                              <i className="bi bi-eye me-1"></i>
+                              Details
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
                   );
                 })}
               </div>
@@ -1060,80 +1096,78 @@ const ShiftHistory = ({ refreshTrigger }) => {
                     {shifts.map((shift, index) => {
                       // 🔧 Calculate real-time data for each shift
                       const { realEndTime, realTotalDuration } = calculateRealTimeDataFromSegments(shift);
-                      
+
                       return (
                         <tr key={shift.id || index}>
-                        <td style={{fontFamily: 'monospace', fontSize: '0.85rem'}}>{shift.shiftId || shift.id || 'N/A'}</td>
-                        <td>{formatDate(shift.shiftDate || shift.date)}</td>
-                        <td>
-                          <span className="badge bg-secondary">
-                            {shift.day || getDayNameFromDate(shift.shiftDate || shift.date)}
-                          </span>
-                        </td>
-                        <td>
-                          <div className="d-flex flex-column gap-1">
-                            <span className={`badge ${
-                              shift.shiftType === 'Overtime' ? 'bg-warning text-dark' : 'bg-primary'
-                            }`}>
-                              {shift.shiftType || 'Regular'}
+                          <td style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>{shift.shiftId || shift.id || 'N/A'}</td>
+                          <td>{formatDate(shift.shiftDate || shift.date)}</td>
+                          <td>
+                            <span className="badge bg-secondary">
+                              {shift.day || getDayNameFromDate(shift.shiftDate || shift.date)}
                             </span>
-                            {(shift.updated === true || shift.updated === 'TRUE') && (
-                              <span className="badge bg-info text-dark" style={{fontSize: '0.7rem'}} title="This shift has been updated">
-                                <i className="bi bi-pencil-fill"></i> Updated
+                          </td>
+                          <td>
+                            <div className="d-flex flex-column gap-1">
+                              <span className={`badge ${shift.shiftType === 'Overtime' ? 'bg-warning text-dark' : 'bg-primary'
+                                }`}>
+                                {shift.shiftType || 'Regular'}
                               </span>
+                              {(shift.updated === true || shift.updated === 'TRUE') && (
+                                <span className="badge bg-info text-dark" style={{ fontSize: '0.7rem' }} title="This shift has been updated">
+                                  <i className="bi bi-pencil-fill"></i> Updated
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td>
+                            {formatTime(shift.firstStartTime || shift.startTime)}
+                            {shift._isCrossMidnight && (
+                              <small className="text-info ms-1" style={{ fontSize: '0.75em' }}>
+                                (prev)
+                              </small>
                             )}
-                          </div>
-                        </td>
-                        <td>
-                          {formatTime(shift.firstStartTime || shift.startTime)}
-                          {shift._isCrossMidnight && (
-                            <small className="text-info ms-1" style={{fontSize: '0.75em'}}>
-                              (prev)
-                            </small>
-                          )}
-                        </td>
-                        <td>
-                          {formatTime(realEndTime)}
-                          {shift._isCrossMidnight && (
-                            <small className="text-info ms-1" style={{fontSize: '0.75em'}}>
-                              (next)
-                            </small>
-                          )}
-                        </td>
-                        <td>
-                          <strong>{formatDuration(realTotalDuration)}</strong> hrs
-                        </td>
-                        <td>
-                          <span className={`badge ${
-                            shift.status === 'COMPLETED' ? 'bg-success' : 
-                            shift.status === 'ACTIVE' ? 'bg-primary' :
-                            shift.status === 'ON BREAK' ? 'bg-warning text-dark' :
-                            shift.status === 'DRAFT' ? 'bg-secondary' : 'bg-light text-dark'
-                          }`}>
-                            {shift.status || 'Unknown'}
-                          </span>
-                        </td>
-                        <td>
-                          <div className="d-flex gap-1">
-                            <button 
-                              className="btn btn-outline-primary btn-sm"
-                              onClick={() => handleEditShift(shift)}
-                              disabled={false}
-                              title="Edit shift times"
-                            >
-                              <i className="bi bi-pencil"></i>
-                            </button>
-                            <button 
-                              className="btn btn-outline-info btn-sm"
-                              onClick={() => {
-                                alert(`Shift details for ${formatDate(shift.shiftDate || shift.date)}`);
-                              }}
-                            >
-                              <i className="bi bi-eye"></i>
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
+                          </td>
+                          <td>
+                            {formatTime(realEndTime)}
+                            {shift._isCrossMidnight && (
+                              <small className="text-info ms-1" style={{ fontSize: '0.75em' }}>
+                                (next)
+                              </small>
+                            )}
+                          </td>
+                          <td>
+                            <strong>{formatDuration(realTotalDuration)}</strong> hrs
+                          </td>
+                          <td>
+                            <span className={`badge ${shift.status === 'COMPLETED' ? 'bg-success' :
+                              shift.status === 'ACTIVE' ? 'bg-primary' :
+                                shift.status === 'ON BREAK' ? 'bg-warning text-dark' :
+                                  shift.status === 'DRAFT' ? 'bg-secondary' : 'bg-light text-dark'
+                              }`}>
+                              {shift.status || 'Unknown'}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="d-flex gap-1">
+                              <button
+                                className="btn btn-outline-primary btn-sm"
+                                onClick={() => handleEditShift(shift)}
+                                disabled={false}
+                                title="Edit shift times"
+                              >
+                                <i className="bi bi-pencil"></i>
+                              </button>
+                              <button
+                                className="btn btn-outline-info btn-sm"
+                                onClick={() => {
+                                  alert(`Shift details for ${formatDate(shift.shiftDate || shift.date)}`);
+                                }}
+                              >
+                                <i className="bi bi-eye"></i>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
                       );
                     })}
                   </tbody>
@@ -1146,7 +1180,7 @@ const ShiftHistory = ({ refreshTrigger }) => {
             <div className="mt-3 d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2">
               <div>
                 <small className="text-muted">
-                  Total shifts: {shifts.length} | 
+                  Total shifts: {shifts.length} |
                   Total hours: {shifts.reduce((sum, shift) => {
                     // 🔧 Use real-time calculated duration
                     const { realTotalDuration } = calculateRealTimeDataFromSegments(shift);
@@ -1175,9 +1209,9 @@ const ShiftHistory = ({ refreshTrigger }) => {
                   <i className="bi bi-pencil-square me-2"></i>
                   Edit Shift Times
                 </h5>
-                <button 
-                  type="button" 
-                  className="btn-close" 
+                <button
+                  type="button"
+                  className="btn-close"
                   onClick={handleCancelEdit}
                   disabled={saving}
                 ></button>
@@ -1186,14 +1220,14 @@ const ShiftHistory = ({ refreshTrigger }) => {
                 <div className="mb-3">
                   <strong>Date:</strong> {formatDate(editingShift.shiftDate || editingShift.date)}
                 </div>
-                
+
                 <div className="row g-3">
                   <div className="col-md-4">
                     <label className="form-label">Shift Type</label>
-                    <select 
+                    <select
                       className="form-select"
                       value={editFormData.shiftType}
-                      onChange={(e) => setEditFormData({...editFormData, shiftType: e.target.value})}
+                      onChange={(e) => setEditFormData({ ...editFormData, shiftType: e.target.value })}
                       disabled={saving}
                     >
                       <option value="Regular">Regular</option>
@@ -1202,32 +1236,52 @@ const ShiftHistory = ({ refreshTrigger }) => {
                       <option value="Weekend">Weekend</option>
                     </select>
                   </div>
-                  
+
                   <div className="col-md-4">
                     <label className="form-label">Start Time</label>
-                    <input 
-                      type="time"
-                      className="form-control"
-                      value={editFormData.firstStartTime}
-                      onChange={(e) => setEditFormData({...editFormData, firstStartTime: e.target.value})}
-                      disabled={saving}
-                      required
-                    />
+                    {isMobileView ? (
+                      <div
+                        className="form-control"
+                        onClick={() => !saving && handleMobileTimeClick('firstStartTime', editFormData.firstStartTime)}
+                        style={{ cursor: saving ? 'default' : 'pointer', backgroundColor: saving ? '#e9ecef' : '#fff' }}
+                      >
+                        {editFormData.firstStartTime || 'Select Time'}
+                      </div>
+                    ) : (
+                      <input
+                        type="time"
+                        className="form-control"
+                        value={editFormData.firstStartTime}
+                        onChange={(e) => setEditFormData({ ...editFormData, firstStartTime: e.target.value })}
+                        disabled={saving}
+                        required
+                      />
+                    )}
                   </div>
-                  
+
                   <div className="col-md-4">
                     <label className="form-label">End Time</label>
-                    <input 
-                      type="time"
-                      className="form-control"
-                      value={editFormData.lastEndTime}
-                      onChange={(e) => setEditFormData({...editFormData, lastEndTime: e.target.value})}
-                      disabled={saving}
-                      required
-                    />
+                    {isMobileView ? (
+                      <div
+                        className="form-control"
+                        onClick={() => !saving && handleMobileTimeClick('lastEndTime', editFormData.lastEndTime)}
+                        style={{ cursor: saving ? 'default' : 'pointer', backgroundColor: saving ? '#e9ecef' : '#fff' }}
+                      >
+                        {editFormData.lastEndTime || 'Select Time'}
+                      </div>
+                    ) : (
+                      <input
+                        type="time"
+                        className="form-control"
+                        value={editFormData.lastEndTime}
+                        onChange={(e) => setEditFormData({ ...editFormData, lastEndTime: e.target.value })}
+                        disabled={saving}
+                        required
+                      />
+                    )}
                   </div>
                 </div>
-                
+
                 {editFormData.firstStartTime && editFormData.lastEndTime && (
                   <div className="mt-3 p-3 bg-light rounded">
                     <div className="d-flex justify-content-between align-items-center">
@@ -1238,7 +1292,7 @@ const ShiftHistory = ({ refreshTrigger }) => {
                     </div>
                   </div>
                 )}
-                
+
                 {/* Advanced Time Segment Entry */}
                 {showAdvancedEdit && (
                   <div className="mt-4">
@@ -1261,7 +1315,7 @@ const ShiftHistory = ({ refreshTrigger }) => {
                     </div>
                   </div>
                 )}
-                
+
                 <div className="mt-3">
                   <small className="text-muted">
                     <i className="bi bi-info-circle me-1"></i>
@@ -1276,26 +1330,26 @@ const ShiftHistory = ({ refreshTrigger }) => {
                 </div>
               </div>
               <div className="modal-footer">
-                <button 
-                  type="button" 
-                  className="btn btn-secondary" 
+                <button
+                  type="button"
+                  className="btn btn-secondary"
                   onClick={handleCancelEdit}
                   disabled={saving}
                 >
                   Cancel
                 </button>
-                <button 
-                  type="button" 
-                  className="btn btn-info me-2" 
+                <button
+                  type="button"
+                  className="btn btn-info me-2"
                   onClick={() => setShowAdvancedEdit(!showAdvancedEdit)}
                   disabled={saving}
                 >
                   <i className="bi bi-gear me-1"></i>
                   {showAdvancedEdit ? 'Hide Advanced' : 'Advanced Edit'}
                 </button>
-                <button 
-                  type="button" 
-                  className="btn btn-primary" 
+                <button
+                  type="button"
+                  className="btn btn-primary"
                   onClick={handleSaveEdit}
                   disabled={saving || !editFormData.firstStartTime || !editFormData.lastEndTime}
                 >
@@ -1315,6 +1369,16 @@ const ShiftHistory = ({ refreshTrigger }) => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Mobile Custom Time Picker */}
+      {showMobileTimePicker && (
+        <CustomTimePicker
+          title={pickerConfig.field === 'firstStartTime' ? 'Start Time' : 'End Time'}
+          initialTime={pickerConfig.initialTime}
+          onConfirm={handleMobileTimeConfirm}
+          onCancel={handleMobileTimeCancel}
+        />
       )}
     </div>
   );

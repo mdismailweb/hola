@@ -21,28 +21,44 @@ import {
   Warning as WarningIcon,
   CheckCircle as CheckIcon
 } from '@mui/icons-material';
-import { 
-  validateSegmentsEditability, 
+import {
+  validateSegmentsEditability,
   getTimeRestrictions
 } from '../../services/appScriptAPI';
 import ScheduleChangeWarning from '../ScheduleChangeWarning/ScheduleChangeWarning';
 import { useAuth } from '../../contexts/AuthContext';
+import CustomTimePicker from '../CustomTimePicker/CustomTimePicker';
 
 const TimeSegmentEntry = ({ onSubmit, existingSegments = [], loading = false, shiftDate = null, scheduleStatus = 'draft' }) => {
   const { user } = useAuth();
   const [segments, setSegments] = useState(
-    existingSegments.length > 0 
+    existingSegments.length > 0
       ? existingSegments.map(seg => ({
-          startTime: seg.startTime || '',
-          endTime: seg.endTime || '',
-          id: seg.id || Date.now() + Math.random()
-        }))
+        startTime: seg.startTime || '',
+        endTime: seg.endTime || '',
+        id: seg.id || Date.now() + Math.random()
+      }))
       : [{ startTime: '', endTime: '', id: Date.now() }]
   );
   const [errors, setErrors] = useState([]);
   const [isScheduleLocked, setIsScheduleLocked] = useState(scheduleStatus === 'locked' || scheduleStatus === 'completed');
   const [showWarningDialog, setShowWarningDialog] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+
+  // Mobile Custom Picker State
+  const [isMobileView, setIsMobileView] = useState(window.innerWidth < 768);
+  const [showMobileTimePicker, setShowMobileTimePicker] = useState(false);
+  const [pickerConfig, setPickerConfig] = useState({ id: null, field: null, initialTime: '' });
+
+  // Mobile detection listener
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobileView(window.innerWidth < 768);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Check time restrictions and editability on component mount and when segments change
   useEffect(() => {
@@ -85,9 +101,9 @@ const TimeSegmentEntry = ({ onSubmit, existingSegments = [], loading = false, sh
   };
 
   const addNewSegment = () => {
-    setSegments([...segments, { 
-      startTime: '', 
-      endTime: '', 
+    setSegments([...segments, {
+      startTime: '',
+      endTime: '',
       id: Date.now() + Math.random()
     }]);
   };
@@ -104,16 +120,44 @@ const TimeSegmentEntry = ({ onSubmit, existingSegments = [], loading = false, sh
       return; // Prevent editing of non-editable segments
     }
 
-    setSegments(segments.map(seg => 
+    setSegments(segments.map(seg =>
       seg.id === id ? { ...seg, [field]: value } : seg
     ));
     // Clear errors when user starts typing
     setErrors([]);
   };
 
+  // Mobile Picker Handlers
+  const handleMobileTimeClick = (id, field, currentTime) => {
+    if (isMobileView) {
+      const segment = segments.find(seg => seg.id === id);
+      if (!isSegmentEditable(segment)) return;
+
+      setPickerConfig({
+        id,
+        field,
+        initialTime: currentTime
+      });
+      setShowMobileTimePicker(true);
+    }
+  };
+
+  const handleMobileTimeConfirm = (timeString) => {
+    if (pickerConfig.id && pickerConfig.field) {
+      updateSegment(pickerConfig.id, pickerConfig.field, timeString);
+    }
+    setShowMobileTimePicker(false);
+    setPickerConfig({ id: null, field: null, initialTime: '' });
+  };
+
+  const handleMobileTimeCancel = () => {
+    setShowMobileTimePicker(false);
+    setPickerConfig({ id: null, field: null, initialTime: '' });
+  };
+
   const validateSegments = () => {
     const newErrors = [];
-    
+
     segments.forEach((segment, index) => {
       // Check if both start and end times are provided
       if (!segment.startTime || !segment.endTime) {
@@ -124,14 +168,14 @@ const TimeSegmentEntry = ({ onSubmit, existingSegments = [], loading = false, sh
       // Check if end time is after start time (allow cross-midnight shifts)
       const start = new Date(`1970-01-01T${segment.startTime}:00`);
       const end = new Date(`1970-01-01T${segment.endTime}:00`);
-      
+
       // Calculate duration using the same logic as backend (handles cross-midnight)
       let diffMs = end - start;
       if (diffMs < 0) {
         diffMs += 24 * 60 * 60 * 1000; // Handle overnight shifts by adding 24 hours
       }
       const duration = diffMs / (1000 * 60 * 60);
-      
+
       if (duration <= 0 || duration >= 24) {
         newErrors.push(`Segment ${index + 1}: Invalid time range (must be within 24 hours)`);
       }
@@ -144,14 +188,14 @@ const TimeSegmentEntry = ({ onSubmit, existingSegments = [], loading = false, sh
       for (let j = i + 1; j < segments.length; j++) {
         const seg1 = segments[i];
         const seg2 = segments[j];
-        
+
         if (!seg1.startTime || !seg1.endTime || !seg2.startTime || !seg2.endTime) continue;
-        
+
         const start1 = new Date(`1970-01-01T${seg1.startTime}:00`);
         const end1 = new Date(`1970-01-01T${seg1.endTime}:00`);
         const start2 = new Date(`1970-01-01T${seg2.startTime}:00`);
         const end2 = new Date(`1970-01-01T${seg2.endTime}:00`);
-        
+
         if ((start1 < end2 && end1 > start2)) {
           newErrors.push(`Segments ${i + 1} and ${j + 1} overlap`);
         }
@@ -189,12 +233,12 @@ const TimeSegmentEntry = ({ onSubmit, existingSegments = [], loading = false, sh
               const start = new Date(`1970-01-01T${seg.startTime}:00`);
               const end = new Date(`1970-01-01T${seg.endTime}:00`);
               let diffMs = end - start;
-              
+
               // Handle overnight shifts
               if (diffMs < 0) {
                 diffMs += 24 * 60 * 60 * 1000;
               }
-              
+
               const hours = diffMs / (1000 * 60 * 60);
               console.log(`📊 Segment duration: ${seg.startTime} to ${seg.endTime} = ${hours.toFixed(2)} hours`);
               return Math.round(hours * 100) / 100; // Round to 2 decimal places
@@ -204,7 +248,7 @@ const TimeSegmentEntry = ({ onSubmit, existingSegments = [], loading = false, sh
             }
           })()
         }));
-      
+
       // Pass schedule status information to parent
       onSubmit(validSegments, {
         shouldLock,
@@ -225,42 +269,42 @@ const TimeSegmentEntry = ({ onSubmit, existingSegments = [], loading = false, sh
               Time Segments Entry
             </Typography>
           </Box>
-          
+
           {/* Information Note */}
           <Alert severity="info" sx={{ mb: 2, fontSize: '0.875rem' }}>
             <Typography variant="body2">
-              <strong>Note:</strong> You can only have one active or completed shift per day. 
+              <strong>Note:</strong> You can only have one active or completed shift per day.
               If you need to modify an existing shift, please use the History tab to edit your times.
             </Typography>
           </Alert>
-          
+
           {/* Status Chips Row - Stack on Mobile */}
-          <Box sx={{ 
-            display: 'flex', 
-            gap: 1, 
+          <Box sx={{
+            display: 'flex',
+            gap: 1,
             alignItems: 'center',
             flexWrap: 'wrap',
             '& > *': { flexShrink: 0 } // Prevent chips from shrinking
           }}>
             {isScheduleLocked ? (
-              <Chip 
-                label="Schedule Locked" 
-                color="success" 
+              <Chip
+                label="Schedule Locked"
+                color="success"
                 size="small"
                 icon={<LockIcon />}
               />
             ) : (
-              <Chip 
-                label="Draft Mode" 
-                color="warning" 
+              <Chip
+                label="Draft Mode"
+                color="warning"
                 size="small"
                 icon={<UnlockIcon />}
               />
             )}
-            <Chip 
-              label={`Total: ${(calculateTotalHours() || 0).toFixed(2)} hours`} 
-              color="primary" 
-              variant="outlined" 
+            <Chip
+              label={`Total: ${(calculateTotalHours() || 0).toFixed(2)} hours`}
+              color="primary"
+              variant="outlined"
             />
           </Box>
         </Box>
@@ -289,27 +333,27 @@ const TimeSegmentEntry = ({ onSubmit, existingSegments = [], loading = false, sh
 
         {segments.map((segment, index) => {
           const segmentEditable = isSegmentEditable(segment);
-          
+
           return (
             <Box key={segment.id} sx={{ mb: 2 }}>
-              <Box sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
+              <Box sx={{
+                display: 'flex',
+                alignItems: 'center',
                 mb: 1,
                 flexWrap: 'wrap',
                 gap: 1
               }}>
-                <Typography variant="subtitle2" sx={{ 
+                <Typography variant="subtitle2" sx={{
                   minWidth: { xs: '80px', sm: '100px' },
                   flexShrink: 0
                 }}>
                   Segment {index + 1}
                 </Typography>
                 {!segmentEditable && (
-                  <Chip 
-                    label="Schedule Locked" 
-                    size="small" 
-                    color="warning" 
+                  <Chip
+                    label="Schedule Locked"
+                    size="small"
+                    color="warning"
                     icon={<LockIcon />}
                     sx={{ flexShrink: 0 }}
                   />
@@ -319,7 +363,7 @@ const TimeSegmentEntry = ({ onSubmit, existingSegments = [], loading = false, sh
                     size="small"
                     onClick={() => removeSegment(segment.id)}
                     color="error"
-                    sx={{ 
+                    sx={{
                       ml: { xs: 0, sm: 'auto' },
                       order: { xs: 3, sm: 0 },
                       width: { xs: '100%', sm: 'auto' },
@@ -330,56 +374,106 @@ const TimeSegmentEntry = ({ onSubmit, existingSegments = [], loading = false, sh
                   </IconButton>
                 )}
               </Box>
-              
+
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Start Time"
-                    type="time"
-                    value={segment.startTime}
-                    onChange={(e) => updateSegment(segment.id, 'startTime', e.target.value)}
-                    InputLabelProps={{ shrink: true }}
-                    disabled={loading || (isScheduleLocked && !isEditing)}
-                    size="small"
-                    sx={{
-                      '& .MuiInputBase-input': {
-                        backgroundColor: (isScheduleLocked && !isEditing) ? '#f5f5f5' : 'transparent'
-                      }
-                    }}
-                  />
+                  {isMobileView ? (
+                    <Box
+                      onClick={() => handleMobileTimeClick(segment.id, 'startTime', segment.startTime)}
+                      sx={{
+                        border: '1px solid rgba(0, 0, 0, 0.23)',
+                        borderRadius: '4px',
+                        padding: '8.5px 14px',
+                        cursor: segmentEditable ? 'pointer' : 'default',
+                        backgroundColor: (isScheduleLocked && !isEditing) ? '#f5f5f5' : 'transparent',
+                        '&:hover': {
+                          borderColor: segmentEditable ? 'text.primary' : 'rgba(0, 0, 0, 0.23)'
+                        },
+                        display: 'flex',
+                        flexDirection: 'column'
+                      }}
+                    >
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                        Start Time
+                      </Typography>
+                      <Typography variant="body1">
+                        {segment.startTime || 'Select time'}
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <TextField
+                      fullWidth
+                      label="Start Time"
+                      type="time"
+                      value={segment.startTime}
+                      onChange={(e) => updateSegment(segment.id, 'startTime', e.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                      disabled={loading || (isScheduleLocked && !isEditing)}
+                      size="small"
+                      sx={{
+                        '& .MuiInputBase-input': {
+                          backgroundColor: (isScheduleLocked && !isEditing) ? '#f5f5f5' : 'transparent'
+                        }
+                      }}
+                    />
+                  )}
                 </Grid>
                 <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="End Time"
-                    type="time"
-                    value={segment.endTime}
-                    onChange={(e) => updateSegment(segment.id, 'endTime', e.target.value)}
-                    InputLabelProps={{ shrink: true }}
-                    disabled={loading || (isScheduleLocked && !isEditing)}
-                    size="small"
-                    sx={{
-                      '& .MuiInputBase-input': {
-                        backgroundColor: (isScheduleLocked && !isEditing) ? '#f5f5f5' : 'transparent'
-                      }
-                    }}
-                  />
+                  {isMobileView ? (
+                    <Box
+                      onClick={() => handleMobileTimeClick(segment.id, 'endTime', segment.endTime)}
+                      sx={{
+                        border: '1px solid rgba(0, 0, 0, 0.23)',
+                        borderRadius: '4px',
+                        padding: '8.5px 14px',
+                        cursor: segmentEditable ? 'pointer' : 'default',
+                        backgroundColor: (isScheduleLocked && !isEditing) ? '#f5f5f5' : 'transparent',
+                        '&:hover': {
+                          borderColor: segmentEditable ? 'text.primary' : 'rgba(0, 0, 0, 0.23)'
+                        },
+                        display: 'flex',
+                        flexDirection: 'column'
+                      }}
+                    >
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                        End Time
+                      </Typography>
+                      <Typography variant="body1">
+                        {segment.endTime || 'Select time'}
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <TextField
+                      fullWidth
+                      label="End Time"
+                      type="time"
+                      value={segment.endTime}
+                      onChange={(e) => updateSegment(segment.id, 'endTime', e.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                      disabled={loading || (isScheduleLocked && !isEditing)}
+                      size="small"
+                      sx={{
+                        '& .MuiInputBase-input': {
+                          backgroundColor: (isScheduleLocked && !isEditing) ? '#f5f5f5' : 'transparent'
+                        }
+                      }}
+                    />
+                  )}
                 </Grid>
               </Grid>
-              
+
               {index < segments.length - 1 && <Divider sx={{ mt: 2 }} />}
             </Box>
           );
         })}
 
-        <Box sx={{ 
-          display: 'flex', 
-          gap: 1, 
-          mt: 3, 
+        <Box sx={{
+          display: 'flex',
+          gap: 1,
+          mt: 3,
           flexWrap: 'wrap',
           alignItems: 'center',
-          '& > button': { 
+          '& > button': {
             minWidth: 'fit-content',
             flexShrink: 0
           }
@@ -389,7 +483,7 @@ const TimeSegmentEntry = ({ onSubmit, existingSegments = [], loading = false, sh
             startIcon={<AddIcon />}
             onClick={addNewSegment}
             disabled={
-              loading || 
+              loading ||
               (isScheduleLocked && !isEditing)
             }
             size="small"
@@ -404,7 +498,7 @@ const TimeSegmentEntry = ({ onSubmit, existingSegments = [], loading = false, sh
               startIcon={<LockIcon />}
               onClick={handleFixTiming}
               disabled={
-                loading || 
+                loading ||
                 segments.some(seg => !seg.startTime || !seg.endTime)
               }
               size="small"
@@ -445,6 +539,16 @@ const TimeSegmentEntry = ({ onSubmit, existingSegments = [], loading = false, sh
         onCancel={handleWarningCancel}
         userName={user?.name || 'User'}
       />
+
+      {/* Mobile Custom Time Picker */}
+      {showMobileTimePicker && (
+        <CustomTimePicker
+          title={pickerConfig.field === 'startTime' ? 'Start Time' : 'End Time'}
+          initialTime={pickerConfig.initialTime}
+          onConfirm={handleMobileTimeConfirm}
+          onCancel={handleMobileTimeCancel}
+        />
+      )}
     </Card>
   );
 };
