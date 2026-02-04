@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
-import { 
+import {
   getShifts,
   getStaffList,
   makeAPICall,
@@ -35,7 +35,7 @@ const AdminDashboard = () => {
     totalStaff: 0
   });
   const [message, setMessage] = useState('');
-  
+
   // Overview tab specific states
   const [selectedTimePeriod, setSelectedTimePeriod] = useState('today');
   const [overviewData, setOverviewData] = useState([]);
@@ -46,7 +46,7 @@ const AdminDashboard = () => {
   const [segmentModalOpen, setSegmentModalOpen] = useState(false);
   const [segmentModalContent, setSegmentModalContent] = useState('');
   const [segmentModalTitle, setSegmentModalTitle] = useState('');
-  
+
   // Shifts tab specific states
   const [shiftsTimePeriod, setShiftsTimePeriod] = useState('week');
   const [shiftsData, setShiftsData] = useState([]);
@@ -128,7 +128,7 @@ const AdminDashboard = () => {
   const getSummaryDateRange = (period, customRange = summaryCustomRange) => {
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0];
-    
+
     switch (period) {
       case 'month':
         // This Month: From 1st of current month to last day of current month
@@ -137,17 +137,17 @@ const AdminDashboard = () => {
         const monthStartStr = `${year}-${String(month + 1).padStart(2, '0')}-01`;
         const monthEndDate = new Date(year, month + 1, 0);
         const monthEndStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(monthEndDate.getDate()).padStart(2, '0')}`;
-        return { 
-          start: monthStartStr, 
-          end: monthEndStr 
+        return {
+          start: monthStartStr,
+          end: monthEndStr
         };
       case 'lastMonth':
         // Last Month: From 1st of previous month to last day of previous month
         const lastMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
         const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
-        return { 
-          start: lastMonthStart.toISOString().split('T')[0], 
-          end: lastMonthEnd.toISOString().split('T')[0] 
+        return {
+          start: lastMonthStart.toISOString().split('T')[0],
+          end: lastMonthEnd.toISOString().split('T')[0]
         };
       case 'week':
         // This Week: From Sunday to today
@@ -166,12 +166,12 @@ const AdminDashboard = () => {
 
   const processCalendarData = (shifts, staffList, dateRange, includeDrafts = true, statusFilter = 'all') => {
     const calendar = {};
-    
+
     // Filter shifts based on date range and draft status
     const filteredShifts = shifts.filter(shift => {
       const shiftDate = shift.shiftDate || shift['Shift Date'];
       const status = shift.status || shift['Status'];
-      
+
       // Convert dates to proper Date objects for comparison
       let inDateRange = true;
       if (dateRange.start && dateRange.end && shiftDate) {
@@ -196,13 +196,13 @@ const AdminDashboard = () => {
           }
           return normalized;
         };
-        
+
         const normalizedShiftDate = normalizeDate(shiftDate);
         const normalizedStartDate = normalizeDate(dateRange.start);
         const normalizedEndDate = normalizeDate(dateRange.end);
-        
+
         inDateRange = normalizedShiftDate >= normalizedStartDate && normalizedShiftDate <= normalizedEndDate;
-        
+
         // Debug logging
         if (!inDateRange) {
           console.log('📅 Date filter debug:', {
@@ -214,12 +214,12 @@ const AdminDashboard = () => {
           });
         }
       }
-      
+
       const includeShift = includeDrafts || status !== 'DRAFT';
-      
+
       return inDateRange && includeShift;
     });
-    
+
     // Determine which employees to show based on their employment status from Staff sheet
     let employees = [];
     if (statusFilter === 'all') {
@@ -232,7 +232,7 @@ const AdminDashboard = () => {
           const empStatus = (employee.status || '').toLowerCase();
           const isActive = empStatus === 'active' || empStatus === ''; // Empty status = active
           const isInactive = empStatus === 'inactive';
-          
+
           console.log('🔍 Employee status check:', {
             name: employee.name,
             status: employee.status,
@@ -240,7 +240,7 @@ const AdminDashboard = () => {
             isActive,
             isInactive
           });
-          
+
           if (statusFilter === 'active') {
             return isActive;
           } else if (statusFilter === 'inactive') {
@@ -251,29 +251,29 @@ const AdminDashboard = () => {
         .map(s => s.name)
         .sort();
     }
-    
+
     // Create date array from start to end
     const startDate = new Date(dateRange.start);
     const endDate = new Date(dateRange.end);
     const dates = [];
-    
+
     for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
       dates.push(new Date(d));
     }
-    
+
     // Initialize calendar grid
     dates.forEach(date => {
       const dateKey = date.toISOString().split('T')[0];
       const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
       const dayMonth = date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
-      
+
       calendar[dateKey] = {
         date: dateKey,
         displayDate: `${dayMonth} ${dayName}`,
         employees: {},
         dayTotal: 0
       };
-      
+
       // Initialize each employee for this date
       employees.forEach(empName => {
         calendar[dateKey].employees[empName] = {
@@ -283,14 +283,14 @@ const AdminDashboard = () => {
         };
       });
     });
-    
+
     // Fill in actual shift data
     filteredShifts.forEach(shift => {
       const shiftDate = shift.shiftDate || shift['Shift Date'];
       const empName = shift.employeeName || shift['Employee Name'];
       const hours = parseFloat(shift.totalDuration || shift['Total Duration']) || 0;
       const shiftStatus = shift.status || shift['Status'] || 'DRAFT';
-      
+
       if (calendar[shiftDate] && calendar[shiftDate].employees[empName]) {
         calendar[shiftDate].employees[empName].hours += hours;
         calendar[shiftDate].employees[empName].shifts += 1;
@@ -298,7 +298,7 @@ const AdminDashboard = () => {
         calendar[shiftDate].dayTotal += hours;
       }
     });
-    
+
     return { calendar, employees, dates };
   };
 
@@ -309,24 +309,24 @@ const AdminDashboard = () => {
     }
 
     const rows = [];
-    
+
     // Header row
     const headers = ['Date', ...calendarData.employees, 'Total'];
     rows.push(headers.join(','));
-    
+
     // Data rows
     calendarData.dates.forEach(date => {
       const dateKey = date.toISOString().split('T')[0];
       const dayData = calendarData.calendar[dateKey];
-      
+
       const row = [dayData?.displayDate || dateKey];
-      
+
       // Add employee hours for this date
       calendarData.employees.forEach(empName => {
         const empData = dayData?.employees?.[empName];
         const hours = empData?.hours || 0;
         const status = empData?.status || '';
-        
+
         // Format: "12.0h (COMPLETED)" or "0" for no hours
         if (hours > 0) {
           row.push(`"${hours.toFixed(1)}h (${status})"`);
@@ -334,13 +334,13 @@ const AdminDashboard = () => {
           row.push('0');
         }
       });
-      
+
       // Add day total
       row.push(`${(dayData?.dayTotal || 0).toFixed(1)}h`);
-      
+
       rows.push(row.join(','));
     });
-    
+
     // Summary row
     const summaryRow = ['TOTAL'];
     calendarData.employees.forEach(empName => {
@@ -351,16 +351,16 @@ const AdminDashboard = () => {
       }, 0) || 0;
       summaryRow.push(`${empTotal.toFixed(1)}h`);
     });
-    
+
     // Grand total
     const grandTotal = calendarData.dates?.reduce((sum, date) => {
       const dateKey = date.toISOString().split('T')[0];
       return sum + (calendarData.calendar[dateKey]?.dayTotal || 0);
     }, 0) || 0;
     summaryRow.push(`${grandTotal.toFixed(1)}h`);
-    
+
     rows.push(summaryRow.join(','));
-    
+
     return rows.join('\n');
   };
 
@@ -371,20 +371,20 @@ const AdminDashboard = () => {
       alert('No calendar data to export. Please load summary data first.');
       return;
     }
-    
+
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
-    
+
     if (link.download !== undefined) {
       const url = URL.createObjectURL(blob);
       link.setAttribute('href', url);
-      
+
       // Generate filename with date range
-      const startDate = summaryDateRange === 'custom' ? summaryCustomRange.start : 
-                       getSummaryDateRange(summaryDateRange).start;
-      const endDate = summaryDateRange === 'custom' ? summaryCustomRange.end : 
-                     getSummaryDateRange(summaryDateRange).end;
-      
+      const startDate = summaryDateRange === 'custom' ? summaryCustomRange.start :
+        getSummaryDateRange(summaryDateRange).start;
+      const endDate = summaryDateRange === 'custom' ? summaryCustomRange.end :
+        getSummaryDateRange(summaryDateRange).end;
+
       const filename = `calendar-summary-${startDate}-to-${endDate}.csv`;
       link.setAttribute('download', filename);
       link.style.visibility = 'hidden';
@@ -400,7 +400,7 @@ const AdminDashboard = () => {
       const dateRange = getSummaryDateRange(summaryDateRange, summaryCustomRange);
       console.log('🗓️ Summary date range:', dateRange);
       console.log('📊 Selected period:', summaryDateRange);
-      
+
       // Load shifts and staff data from both sheets
       console.log('📡 Fetching data from sheets...');
       const [shiftsResponse, staffResponse] = await Promise.all([
@@ -410,10 +410,10 @@ const AdminDashboard = () => {
         }),
         getStaffList()
       ]);
-      
+
       console.log('📊 Shifts response:', shiftsResponse);
       console.log('👥 Staff response:', staffResponse);
-      
+
       // Debug first few shifts to see date format
       if (shiftsResponse.success && shiftsResponse.data.length > 0) {
         console.log('🔍 Sample shift data (first 3):');
@@ -426,43 +426,43 @@ const AdminDashboard = () => {
           });
         });
       }
-      
+
       if (shiftsResponse.success && staffResponse.success) {
         // ✅ VALIDATE AND FIX STATUS INCONSISTENCIES BEFORE PROCESSING
         console.log('🔄 ADMIN SUMMARY TAB: Running validation-detection-fix cycle...');
         const validationResult = await validateAndFixShiftStatuses(shiftsResponse.data);
-        
+
         let finalShiftsData = shiftsResponse.data;
-        
+
         if (validationResult.needsRefresh) {
           console.log(`🔄 ADMIN SUMMARY TAB RE-FETCHING: ${validationResult.fixedCount} shifts fixed, getting fresh data...`);
-          
+
           const freshShiftsResponse = await getShifts({
             startDate: dateRange.start,
             endDate: dateRange.end,
             forceRefresh: true
           });
-          
+
           if (freshShiftsResponse.success) {
             finalShiftsData = freshShiftsResponse.data;
             setMessage(`✅ ${validationResult.fixedCount} shift status(es) corrected in Google Sheets`);
           }
         }
-        
+
         setSummaryData(finalShiftsData);
-        
+
         // Process into calendar format
         const { calendar, employees, dates } = processCalendarData(
-          finalShiftsData, 
-          staffResponse.data, 
-          dateRange, 
+          finalShiftsData,
+          staffResponse.data,
+          dateRange,
           showDrafts,
           employeeStatusFilter
         );
-        
+
         setCalendarData({ calendar, employees, dates, dateRange });
         setActiveEmployees(employees);
-        
+
         if (!validationResult.needsRefresh) {
           setMessage(`Summary loaded: ${finalShiftsData.length} shifts for ${employees.length} employees`);
         }
@@ -479,7 +479,7 @@ const AdminDashboard = () => {
   // Helper function to calculate duration from time strings (HH:MM format)
   const calculateDurationFromTimes = (startTime, endTime) => {
     if (!startTime || !endTime) return 0;
-    
+
     try {
       // Handle different time formats
       const parseTime = (timeStr) => {
@@ -495,17 +495,17 @@ const AdminDashboard = () => {
         }
         return 0;
       };
-      
+
       const startHours = parseTime(startTime);
       const endHours = parseTime(endTime);
-      
+
       let duration = endHours - startHours;
-      
+
       // Handle overnight shifts (end time is before start time)
       if (duration < 0) {
         duration += 24;
       }
-      
+
       return Math.max(0, duration);
     } catch (error) {
       console.error('Error calculating duration from times:', error, { startTime, endTime });
@@ -520,17 +520,17 @@ const AdminDashboard = () => {
       console.warn('getDurationFromShift: Invalid shift data:', shift);
       return 0;
     }
-    
+
     // Try to get duration from Total Duration column first
     let duration = parseFloat(shift['Total Duration']) || 0;
-    
+
     // Fallback 1: Calculate from segments if main duration is 0
     if (duration === 0 && shift['Segments Data']) {
       try {
-        const segmentsData = typeof shift['Segments Data'] === 'string' 
-          ? JSON.parse(shift['Segments Data']) 
+        const segmentsData = typeof shift['Segments Data'] === 'string'
+          ? JSON.parse(shift['Segments Data'])
           : shift['Segments Data'];
-        
+
         if (Array.isArray(segmentsData) && segmentsData.length > 0) {
           // Try to sum up segment durations
           duration = segmentsData.reduce((total, seg) => {
@@ -549,22 +549,22 @@ const AdminDashboard = () => {
         console.error('Error parsing segments for duration calculation:', error);
       }
     }
-    
+
     // Fallback 2: Calculate from First Start Time and Last End Time
     if (duration === 0 && shift['First Start Time'] && shift['Last End Time']) {
       duration = calculateDurationFromTimes(shift['First Start Time'], shift['Last End Time']);
     }
-    
+
     return duration;
   };
 
   // Diagnostic function for console testing
   window.debugDurationCalculation = () => {
     console.log('🔍 === DURATION CALCULATION DIAGNOSTIC ===');
-    
+
     const data = getFilteredShiftsData();
     console.log('📊 Total shifts in filtered data:', data.length);
-    
+
     if (data.length === 0) {
       console.log('❌ No shift data available in filtered results.');
       console.log('🔍 Checking raw data and state...');
@@ -573,7 +573,7 @@ const AdminDashboard = () => {
       console.log('Selected time period:', shiftsTimePeriod);
       console.log('Column filters:', shiftsColumnFilters);
       console.log('Global filter:', globalFilter);
-      
+
       if (shiftsData.length > 0) {
         console.log('✅ Raw data exists, but filtered out. First raw record:');
         console.log(shiftsData[0]);
@@ -582,7 +582,7 @@ const AdminDashboard = () => {
       }
       return;
     }
-    
+
     data.forEach((shift, index) => {
       console.log(`\n📋 Shift ${index + 1}:`);
       console.log('  Shift ID:', shift['Shift ID']);
@@ -591,12 +591,12 @@ const AdminDashboard = () => {
       console.log('  Times:', shift['First Start Time'], '→', shift['Last End Time']);
       console.log('  Backend Duration:', shift['Total Duration']);
       console.log('  Segments Data:', shift['Segments Data']);
-      
+
       try {
         const calculatedDuration = getDurationFromShift(shift);
         console.log('  ✅ Calculated Duration:', calculatedDuration.toFixed(2), 'hours');
         console.log('  ✅ Formatted Display:', calculatedDuration > 0 ? `${calculatedDuration.toFixed(1)}h` : '-');
-        
+
         if (shift['Segments Data']) {
           const segments = JSON.parse(shift['Segments Data']);
           console.log('  📊 Segments breakdown:', segments.map(s => `${s.startTime}-${s.endTime} (${s.duration}h)`));
@@ -605,7 +605,7 @@ const AdminDashboard = () => {
         console.log('  ❌ Error calculating duration:', error);
       }
     });
-    
+
     console.log('\n🎯 === SUMMARY ===');
     const totalHours = data.reduce((sum, shift) => sum + getDurationFromShift(shift), 0);
     console.log('Total hours across all shifts:', totalHours.toFixed(2));
@@ -625,7 +625,7 @@ const AdminDashboard = () => {
     console.log('Global filter:', globalFilter);
     console.log('Filtered data length:', getFilteredShiftsData().length);
     console.log('====================================');
-    
+
     if (rawShiftsData.length > 0) {
       console.log('Sample raw record:', rawShiftsData[0]);
     }
@@ -638,20 +638,20 @@ const AdminDashboard = () => {
   window.loadShiftsDataManually = async () => {
     console.log('🚀 === MANUAL DATA LOADING ===');
     console.log('Current time period:', shiftsTimePeriod);
-    
+
     try {
       console.log('📡 Calling handleViewShiftsData...');
       await handleViewShiftsData();
       console.log('✅ Data loading completed!');
       console.log('📊 New data count:', shiftsData.length);
-      
+
       // Run diagnostics automatically after loading
       setTimeout(() => {
         console.log('\n🔄 Running post-load diagnostics...');
         window.debugAdminData();
         window.debugDurationCalculation();
       }, 1000);
-      
+
     } catch (error) {
       console.error('❌ Error loading data:', error);
     }
@@ -661,7 +661,7 @@ const AdminDashboard = () => {
   window.testEditFunctionality = () => {
     console.log('🔧 === TESTING EDIT FUNCTIONALITY ===');
     console.log('Available shifts for editing:', shiftsData.length);
-    
+
     if (shiftsData.length > 0) {
       console.log('✅ Test: Click edit on first shift');
       console.log('Shift data:', shiftsData[0]);
@@ -700,7 +700,7 @@ const AdminDashboard = () => {
         return 'DRAFT';
       }
     }
-    
+
     if (!Array.isArray(parsedSegments)) {
       console.log('❌ Segments not an array');
       return 'DRAFT';
@@ -710,7 +710,7 @@ const AdminDashboard = () => {
     const now = new Date();
     const currentDateTime = now.getTime();
     console.log('⏰ Current date/time:', now.toLocaleString(), 'timestamp:', currentDateTime);
-    
+
     // Parse shift date
     let shiftDateObj;
     if (shiftDate) {
@@ -728,48 +728,48 @@ const AdminDashboard = () => {
         shiftDateObj = new Date(shiftDate);
       }
     }
-    
+
     if (!shiftDateObj || isNaN(shiftDateObj.getTime())) {
       console.log('⚠️ Invalid shift date, using today:', shiftDate);
       shiftDateObj = new Date();
       shiftDateObj.setHours(0, 0, 0, 0); // Start of today
     }
-    
+
     console.log('📅 Shift date:', shiftDateObj.toDateString());
-    
+
     // 🚨 DATE-AWARE STATUS VALIDATION (Compare dates properly, not strings!)
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Normalize to start of day
-    
+
     const shiftDateNormalized = new Date(shiftDateObj);
     shiftDateNormalized.setHours(0, 0, 0, 0); // Normalize to start of day
-    
+
     const isShiftFromPast = shiftDateNormalized < today;
     const isShiftFromFuture = shiftDateNormalized > today;
     const isShiftToday = shiftDateNormalized.getTime() === today.getTime();
-    
+
     // Calculate day difference for overnight shift detection
     let dayDifference = 0;
     if (isShiftFromPast) {
       dayDifference = Math.floor((today - shiftDateNormalized) / (1000 * 60 * 60 * 24));
     }
-    
+
     console.log(`📅 Date Analysis: Shift=${shiftDateObj.toDateString()}, Today=${today.toDateString()}`);
     console.log(`📅 isPast=${isShiftFromPast}, isFuture=${isShiftFromFuture}, isToday=${isShiftToday}`);
-    
+
     if (isShiftFromPast) {
       // 🌙 OVERNIGHT SHIFT CHECK: If date is exactly 1 day ago, might still be active
       const dayDifference = Math.floor((today - shiftDateNormalized) / (1000 * 60 * 60 * 24));
-      
+
       if (dayDifference === 1 && parsedSegments.length > 0) {
         // Check if shift ends in early morning (overnight shift indicator)
         const lastSegment = parsedSegments[parsedSegments.length - 1];
         const lastEndTime = lastSegment?.endTime;
-        
+
         if (lastEndTime) {
           const [endHour] = lastEndTime.split(':').map(Number);
           const [currentHour] = currentTime.split(':').map(Number);
-          
+
           // If shift ends between midnight and 8 AM, it's likely an overnight shift
           if (endHour >= 0 && endHour <= 8) {
             // If current time is before shift end time in early morning
@@ -815,25 +815,25 @@ const AdminDashboard = () => {
       console.log('🎯 Future shift - can only be DRAFT or OFFLINE');
       return 'DRAFT';
     }
-    
+
     // For today's shifts (or overnight shifts continuing into today), continue with normal time-based logic
     if (!isShiftToday && !(isShiftFromPast && dayDifference === 1)) {
       console.log('🎯 Not today\'s shift - defaulting to DRAFT');
       return 'DRAFT';
     }
-    
+
     // Get the actual start and end times from segments
     const firstSegment = parsedSegments[0];
     const lastSegment = parsedSegments[parsedSegments.length - 1];
-    
+
     if (firstSegment && firstSegment.startTime) {
       // Create full datetime for shift start
       const [startHours, startMinutes] = firstSegment.startTime.split(':').map(Number);
       const shiftStartDateTime = new Date(shiftDateObj);
       shiftStartDateTime.setHours(startHours, startMinutes, 0, 0);
-      
+
       console.log('🚀 Shift start datetime:', shiftStartDateTime.toLocaleString());
-      
+
       // Check if shift hasn't started yet (considering date)
       if (currentDateTime < shiftStartDateTime.getTime()) {
         console.log('⚫ Before start time - OFFLINE');
@@ -844,7 +844,7 @@ const AdminDashboard = () => {
     // Check for active segments (segments without end time)
     const hasActiveSegment = parsedSegments.some(seg => !seg.endTime);
     console.log('🔄 Has active segment (no end time):', hasActiveSegment);
-    
+
     if (hasActiveSegment) {
       console.log('🟢 Active segment detected - ACTIVE');
       return 'ACTIVE';
@@ -856,10 +856,10 @@ const AdminDashboard = () => {
       const [endHours, endMinutes] = lastSegment.endTime.split(':').map(Number);
       const shiftEndDateTime = new Date(shiftDateObj);
       shiftEndDateTime.setHours(endHours, endMinutes, 0, 0);
-      
+
       console.log('🏁 Shift end datetime:', shiftEndDateTime.toLocaleString());
       console.log('⏰ Comparison: current', now.toLocaleString(), 'vs end', shiftEndDateTime.toLocaleString());
-      
+
       if (currentDateTime < shiftEndDateTime.getTime()) {
         console.log('🟢 Current time before end time - should be ACTIVE');
         return 'ACTIVE';
@@ -905,16 +905,16 @@ const AdminDashboard = () => {
           newStatus: calculatedStatus,
           reason: 'Smart status calculation'
         });
-        
+
         const response = await makeAPICall({
           action: 'updateShiftStatus',
           shiftId: shift['Shift ID'],
           newStatus: calculatedStatus,
           reason: 'Smart status calculation'
         });
-        
+
         console.log(`📡 API Response:`, response);
-        
+
         if (response.success) {
           console.log(`✅ Status synced successfully for ${shift['Shift ID']}`);
           return calculatedStatus;
@@ -933,7 +933,7 @@ const AdminDashboard = () => {
   // Enhanced normalization with smart status calculation
   const normalizeRecord = async (rec) => {
     if (!rec || typeof rec !== 'object') return rec;
-    
+
     // Enhanced debug logging for status calculation
     console.log('🔍 === NORMALIZING RECORD ===');
     console.log('Input record:', rec);
@@ -943,11 +943,11 @@ const AdminDashboard = () => {
     console.log('First start time:', rec['First Start Time'] || rec.startTime);
     console.log('Last end time:', rec['Last End Time'] || rec.endTime);
     console.log('Shift date:', rec['Shift Date'] || rec.date);
-    
+
     // Calculate smart status based on current time and shift data (now with date awareness)
     const currentTime = getCurrentTimeString();
     console.log('⏰ Current time for calculation:', currentTime);
-    
+
     const calculatedStatus = calculateSmartStatus(
       rec['Segments Data'] || rec.segments,
       currentTime,
@@ -955,29 +955,29 @@ const AdminDashboard = () => {
       rec['Last End Time'] || rec.endTime,
       rec['Shift Date'] || rec.date // Pass shift date for proper date/time comparison
     );
-    
+
     console.log('🧮 Calculated smart status:', calculatedStatus);
     console.log('🔍 Original status:', rec['Status'] || rec.status);
     console.log('❓ Status needs update:', calculatedStatus !== (rec['Status'] || rec.status));
-    
+
     // Create normalized record
     const normalized = { ...rec };
-    
+
     // Apply smart status (will be synced with backend if different)
     normalized['Status'] = calculatedStatus;
     normalized['_smartStatus'] = calculatedStatus;
     normalized['_originalStatus'] = rec['Status'] || rec.status;
     normalized['_statusCalculated'] = calculatedStatus !== (rec['Status'] || rec.status);
-    
+
     console.log('🔧 Status flags:', {
       original: rec['Status'] || rec.status,
       calculated: calculatedStatus,
       needsUpdate: normalized['_statusCalculated']
     });
-    
+
     console.log('✅ Normalized record completed');
     console.log('===============================');
-    
+
     return normalized;
   };
 
@@ -988,10 +988,10 @@ const AdminDashboard = () => {
    */
   const validateAndFixShiftStatuses = async (shiftsData) => {
     console.log(`📅 ADMIN VALIDATION: Received ${shiftsData.length} shifts - Checking for status inconsistencies`);
-    
+
     let fixedShiftsCount = 0;
     const shiftsToFix = [];
-    
+
     // 🏗️ DETECT: Check each shift for status inconsistencies
     for (const shift of shiftsData) {
       // 🔧 Handle both backend formats: camelCase (getDashboardData) and Pascal Case (getAllShiftsForAdmin)
@@ -1001,14 +1001,14 @@ const AdminDashboard = () => {
       const firstStartTime = shift.firstStartTime || shift['First Start Time'];
       const lastEndTime = shift.lastEndTime || shift['Last End Time'];
       const segments = shift.segments || shift['Segments Data'];
-      
+
       console.log(`🔍 ADMIN CHECKING SHIFT ${shiftId}:`, {
         originalStatus: status,
         shiftDate: shiftDate,
         startTime: firstStartTime,
         endTime: lastEndTime
       });
-      
+
       // Convert Admin format to Staff format for validation
       const shiftForValidation = {
         shiftId: shiftId,
@@ -1018,7 +1018,7 @@ const AdminDashboard = () => {
         lastEndTime: lastEndTime,
         segments: segments
       };
-      
+
       const smartStatus = applyFrontendSmartStatus(shiftForValidation);
       console.log(`📊 ADMIN SMART STATUS RESULT:`, {
         shiftId: shiftId,
@@ -1027,7 +1027,7 @@ const AdminDashboard = () => {
         statusCorrected: smartStatus._statusCorrected,
         reason: smartStatus._correctionReason
       });
-      
+
       if (smartStatus._statusCorrected) {
         console.log(`❌ ADMIN STATUS INCONSISTENCY DETECTED:`, {
           shiftId: shiftId,
@@ -1035,7 +1035,7 @@ const AdminDashboard = () => {
           correctedStatus: smartStatus.status,
           reason: smartStatus._correctionReason
         });
-        
+
         shiftsToFix.push({
           shiftId: shiftId,
           correctedStatus: smartStatus.status,
@@ -1043,11 +1043,11 @@ const AdminDashboard = () => {
         });
       }
     }
-    
+
     // 🔧 FIX: Fix inconsistencies in Google Sheets
     if (shiftsToFix.length > 0) {
       console.log(`🔧 ADMIN FIXING ${shiftsToFix.length} STATUS INCONSISTENCIES IN GOOGLE SHEETS...`);
-      
+
       for (const fixData of shiftsToFix) {
         try {
           const fixResponse = await fixShiftStatus({
@@ -1055,7 +1055,7 @@ const AdminDashboard = () => {
             correctStatus: fixData.correctedStatus,
             reason: fixData.reason
           });
-          
+
           if (fixResponse.success) {
             console.log(`✅ ADMIN FIXED SHIFT ${fixData.shiftId} in Google Sheets`);
             fixedShiftsCount++;
@@ -1069,7 +1069,7 @@ const AdminDashboard = () => {
     } else {
       console.log('✅ ADMIN VALIDATION: All shift statuses are correct');
     }
-    
+
     return {
       shifts: shiftsData,
       fixedCount: fixedShiftsCount,
@@ -1079,33 +1079,33 @@ const AdminDashboard = () => {
 
   // View Type configurations for column filtering
   const viewTypes = [
-    { 
-      value: 'essential', 
+    {
+      value: 'essential',
       label: 'Essential View (8 cols)',
       columns: ['Shift ID', 'Employee Name', 'Shift Date', 'First Start Time', 'Last End Time', 'Total Duration', 'Status', 'Day']
     },
-    { 
-      value: 'management', 
+    {
+      value: 'management',
       label: 'Management View (10 cols)',
       columns: ['Shift ID', 'Employee Name', 'Employee ID', 'Shift Date', 'Shift Type', 'First Start Time', 'Last End Time', 'Total Duration', 'Status', 'Day']
     },
-    { 
-      value: 'complete', 
+    {
+      value: 'complete',
       label: 'Complete View (All 16 cols)',
       columns: appsScriptColumns.map(col => col.key)
     },
-    { 
-      value: 'timetracking', 
+    {
+      value: 'timetracking',
       label: 'Time Tracking (9 cols)',
       columns: ['Shift ID', 'Employee Name', 'Shift Date', 'First Start Time', 'Last End Time', 'Total Duration', 'Number of Segments', 'Status', 'Day']
     },
-    { 
-      value: 'audit', 
+    {
+      value: 'audit',
       label: 'Audit Trail (11 cols)',
       columns: ['Shift ID', 'Employee Name', 'Employee ID', 'Shift Date', 'Status', 'Created At', 'Last Updated', 'Initial Segment Data', 'Segments Data', 'Updated', 'Day']
     },
-    { 
-      value: 'quick', 
+    {
+      value: 'quick',
       label: 'Quick Summary (6 cols)',
       columns: ['Employee Name', 'Shift Date', 'Total Duration', 'Number of Segments', 'Status', 'Day']
     }
@@ -1145,45 +1145,45 @@ const AdminDashboard = () => {
     }
     return appsScriptColumns.map(col => col.key);
   };
-  
+
   // Time period options
   const timePeriodOptions = [
-  { value: 'today', label: 'Today' },
-  { value: 'last7days', label: 'Last 7 Days' },
-  { value: 'last30days', label: 'Last 30 Days' },
-  { value: 'week', label: 'This Week' },
-  { value: 'month', label: 'This Month' },
-  { value: 'quarter', label: 'This Quarter' },
-  { value: 'year', label: 'This Year' },
-  { value: 'custom', label: 'Custom Range' },
-  { value: 'monthlyTotalPerEmployee', label: 'Monthly Total per Employee' },
-  { value: 'monthlyAvgPerEmployee', label: 'Monthly Average per Employee' },
-  { value: 'weeklyTotalPerEmployee', label: 'Weekly Total per Employee' },
-  { value: 'weeklyAvgPerEmployee', label: 'Weekly Average per Employee' },
-  { value: 'quarterlyTotalPerEmployee', label: 'Quarterly Total per Employee' },
-  { value: 'quarterlyAvgPerEmployee', label: 'Quarterly Average per Employee' },
-  { value: 'yearlyTotalPerEmployee', label: 'Yearly Total per Employee' },
-  { value: 'yearlyAvgPerEmployee', label: 'Yearly Average per Employee' },
-  { value: 'allTimeTotalPerEmployee', label: 'All Time Total per Employee' },
-  { value: 'weeklyTotal', label: 'Weekly Total (All Employees)' },
-  { value: 'monthlyTotal', label: 'Monthly Total (All Employees)' },
-  { value: 'quarterlyTotal', label: 'Quarterly Total (All Employees)' },
-  { value: 'yearlyTotal', label: 'Yearly Total (All Employees)' },
-  { value: 'allTimeTotal', label: 'All Time Total (All Employees)' },
-  { value: 'allTimeAverage', label: 'All Time Average (All Employees)' },
-  { value: 'allTimeData', label: 'All Time Data (All Employees)' } // New option for all data
+    { value: 'today', label: 'Today' },
+    { value: 'last7days', label: 'Last 7 Days' },
+    { value: 'last30days', label: 'Last 30 Days' },
+    { value: 'week', label: 'This Week' },
+    { value: 'month', label: 'This Month' },
+    { value: 'quarter', label: 'This Quarter' },
+    { value: 'year', label: 'This Year' },
+    { value: 'custom', label: 'Custom Range' },
+    { value: 'monthlyTotalPerEmployee', label: 'Monthly Total per Employee' },
+    { value: 'monthlyAvgPerEmployee', label: 'Monthly Average per Employee' },
+    { value: 'weeklyTotalPerEmployee', label: 'Weekly Total per Employee' },
+    { value: 'weeklyAvgPerEmployee', label: 'Weekly Average per Employee' },
+    { value: 'quarterlyTotalPerEmployee', label: 'Quarterly Total per Employee' },
+    { value: 'quarterlyAvgPerEmployee', label: 'Quarterly Average per Employee' },
+    { value: 'yearlyTotalPerEmployee', label: 'Yearly Total per Employee' },
+    { value: 'yearlyAvgPerEmployee', label: 'Yearly Average per Employee' },
+    { value: 'allTimeTotalPerEmployee', label: 'All Time Total per Employee' },
+    { value: 'weeklyTotal', label: 'Weekly Total (All Employees)' },
+    { value: 'monthlyTotal', label: 'Monthly Total (All Employees)' },
+    { value: 'quarterlyTotal', label: 'Quarterly Total (All Employees)' },
+    { value: 'yearlyTotal', label: 'Yearly Total (All Employees)' },
+    { value: 'allTimeTotal', label: 'All Time Total (All Employees)' },
+    { value: 'allTimeAverage', label: 'All Time Average (All Employees)' },
+    { value: 'allTimeData', label: 'All Time Data (All Employees)' } // New option for all data
   ];
 
   // Load initial data
   useEffect(() => {
     loadDashboardData();
-    
+
     // Set up auto-refresh for status updates every 2 minutes
     const statusRefreshInterval = setInterval(() => {
       console.log('🔄 Auto-refreshing dashboard for status updates...');
       loadDashboardData();
     }, 2 * 60 * 1000); // 2 minutes
-    
+
     return () => {
       clearInterval(statusRefreshInterval);
     };
@@ -1201,7 +1201,7 @@ const AdminDashboard = () => {
       setStatusUpdateLoading(true);
       console.log('🚀 Running automatic status update on admin portal load...');
       const result = await autoStatusUpdateOnLoad();
-      
+
       if (result.success) {
         console.log('✅ Auto status update completed:', result.message);
         setLastUpdateTime(new Date());
@@ -1221,7 +1221,7 @@ const AdminDashboard = () => {
       setStatusUpdateLoading(true);
       console.log('🔄 Running manual status update...');
       const result = await manualStatusUpdate();
-      
+
       if (result.success) {
         alert(`✅ Status update completed!\n${result.message}`);
         setLastUpdateTime(new Date());
@@ -1248,25 +1248,25 @@ const AdminDashboard = () => {
       }
 
       // Load recent shifts
-      const shiftsResponse = await getShifts({ 
+      const shiftsResponse = await getShifts({
         startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Last 7 days
         endDate: new Date().toISOString().split('T')[0]
       });
-      
+
       if (shiftsResponse.success) {
         // ✅ VALIDATE AND FIX STATUS INCONSISTENCIES
         console.log('🔄 ADMIN DASHBOARD: Running validation-detection-fix cycle...');
         const validationResult = await validateAndFixShiftStatuses(shiftsResponse.data);
-        
+
         if (validationResult.needsRefresh) {
           console.log(`🔄 ADMIN DASHBOARD RE-FETCHING: ${validationResult.fixedCount} shifts fixed, getting fresh data...`);
-          
-          const freshShiftsResponse = await getShifts({ 
+
+          const freshShiftsResponse = await getShifts({
             startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
             endDate: new Date().toISOString().split('T')[0],
             forceRefresh: true
           });
-          
+
           if (freshShiftsResponse.success) {
             setAllShifts(freshShiftsResponse.data);
             setMessage(`✅ ${validationResult.fixedCount} shift status(es) corrected in Google Sheets`);
@@ -1350,7 +1350,7 @@ const AdminDashboard = () => {
     try {
       setLoading(true);
       const response = await getStaffList();
-      
+
       if (response.success && response.data) {
         // Convert staff data to CSV format
         const csvData = convertToCSV(response.data, [
@@ -1360,7 +1360,7 @@ const AdminDashboard = () => {
           { key: 'role', label: 'Role' },
           { key: 'department', label: 'Department' }
         ]);
-        
+
         downloadCSV(csvData, `staff-data-${getCurrentDateString()}.csv`);
         setMessage('Staff data exported successfully!');
       } else {
@@ -1376,17 +1376,17 @@ const AdminDashboard = () => {
   const handleExportShiftsData = async () => {
     try {
       setLoading(true);
-      
+
       // Get shifts for current month as default
       const today = new Date();
       const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
       const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-      
+
       const response = await getShifts({
         startDate: startOfMonth.toISOString().split('T')[0],
         endDate: endOfMonth.toISOString().split('T')[0]
       });
-      
+
       if (response.success && response.data) {
         // Convert shifts data to CSV format
         const csvData = convertToCSV(response.data, [
@@ -1401,7 +1401,7 @@ const AdminDashboard = () => {
           { key: 'Status', label: 'Status' },
           { key: 'Number of Segments', label: 'Segments' }
         ]);
-        
+
         downloadCSV(csvData, `shifts-data-${getCurrentDateString()}.csv`);
         setMessage(`Exported ${response.data.length} shifts successfully!`);
       } else {
@@ -1418,17 +1418,17 @@ const AdminDashboard = () => {
     if (!window.confirm('This will export all system data. Continue?')) {
       return;
     }
-    
+
     try {
       setLoading(true);
       setMessage('Preparing complete system export...');
-      
+
       // Get all data
       const [staffResponse, shiftsResponse] = await Promise.all([
         getStaffList(),
         getShifts({ startDate: '2020-01-01', endDate: '2030-12-31' }) // All shifts
       ]);
-      
+
       const exportData = {
         exportInfo: {
           timestamp: new Date().toISOString(),
@@ -1439,10 +1439,10 @@ const AdminDashboard = () => {
         shifts: shiftsResponse.success ? shiftsResponse.data : [],
         stats: stats
       };
-      
+
       // Ask user for format preference
       const exportAsCSV = window.confirm('Export as CSV files? (Cancel for JSON backup)');
-      
+
       if (exportAsCSV) {
         // Export as multiple CSV files
         await handleExportAllDataAsCSV(exportData);
@@ -1462,7 +1462,7 @@ const AdminDashboard = () => {
 
   const handleExportAllDataAsCSV = async (exportData) => {
     const dateStr = getCurrentDateString();
-    
+
     // Export staff data as CSV
     if (exportData.staff && exportData.staff.length > 0) {
       const staffCSV = convertToCSV(exportData.staff, [
@@ -1474,7 +1474,7 @@ const AdminDashboard = () => {
       ]);
       downloadCSV(staffCSV, `staff-complete-${dateStr}.csv`);
     }
-    
+
     // Export shifts data as CSV
     if (exportData.shifts && exportData.shifts.length > 0) {
       const shiftsCSV = convertToCSV(exportData.shifts, [
@@ -1492,7 +1492,7 @@ const AdminDashboard = () => {
       ]);
       downloadCSV(shiftsCSV, `shifts-complete-${dateStr}.csv`);
     }
-    
+
     // Export system info as CSV
     const systemInfo = [
       {
@@ -1506,7 +1506,7 @@ const AdminDashboard = () => {
         'Today Shifts': exportData.stats?.todayShifts || 0
       }
     ];
-    
+
     const systemCSV = convertToCSV(systemInfo, [
       { key: 'Export Date', label: 'Export Date' },
       { key: 'Exported By', label: 'Exported By' },
@@ -1518,7 +1518,7 @@ const AdminDashboard = () => {
       { key: 'Today Shifts', label: 'Today Shifts' }
     ]);
     downloadCSV(systemCSV, `system-info-${dateStr}.csv`);
-    
+
     // Small delay between downloads to prevent browser issues
     await new Promise(resolve => setTimeout(resolve, 500));
   };
@@ -1531,30 +1531,30 @@ const AdminDashboard = () => {
     input.onchange = async (event) => {
       const file = event.target.files[0];
       if (!file) return;
-      
+
       try {
         setLoading(true);
         setMessage('Converting JSON backup to CSV files...');
-        
+
         const text = await file.text();
         const jsonData = JSON.parse(text);
-        
+
         // Validate JSON structure
         if (!jsonData.staff && !jsonData.shifts) {
           setMessage('Invalid JSON backup file format');
           return;
         }
-        
+
         await handleExportAllDataAsCSV(jsonData);
         setMessage('JSON backup successfully converted to CSV files!');
-        
+
       } catch (error) {
         setMessage('Error converting JSON file: ' + error.message);
       } finally {
         setLoading(false);
       }
     };
-    
+
     input.click();
   };
 
@@ -1563,17 +1563,17 @@ const AdminDashboard = () => {
     try {
       setAiLoading(true);
       setMessage('🤖 Fetching comprehensive data for AI analysis...');
-      
+
       // Step 1: Get comprehensive sheet data first
       const dataResponse = await getComprehensiveSheetData();
-      
+
       if (dataResponse.success) {
         setComprehensiveData(dataResponse.data);
         setMessage('✅ Data loaded! Processing with AI...');
-        
+
         // Step 2: Process with AI using the comprehensive data
         const analysisResponse = await processAIPromptWithData(customPrompt, true);
-        
+
         if (analysisResponse.success) {
           setAiResponse(analysisResponse.data.analysis);
           setLastAnalysis({
@@ -1586,7 +1586,7 @@ const AdminDashboard = () => {
             timestamp: new Date().toISOString(),
             dataSnapshot: dataResponse.data
           });
-          
+
           setMessage('🎉 Enhanced AI analysis completed! Response displayed below.');
         } else {
           setMessage('❌ AI processing failed: ' + analysisResponse.message);
@@ -1605,9 +1605,9 @@ const AdminDashboard = () => {
     try {
       setLoading(true);
       setMessage('🔍 Testing backend version...');
-      
+
       const result = await testBackendVersion();
-      
+
       if (result.isUpdated) {
         setMessage(`✅ ${result.message} Backend is up to date!`);
       } else {
@@ -1625,13 +1625,13 @@ const AdminDashboard = () => {
     try {
       setExperimentalLoading(true);
       setMessage(`🧪 Running experimental AI: ${experimentType}...`);
-      
+
       const response = await runExperimentalAI(experimentType, {
         includeTimeAnalysis: true,
         includePatternDetection: true,
         includePredictions: true
       });
-      
+
       if (response.success) {
         setExperimentResults(prev => [...prev, {
           id: Date.now(),
@@ -1663,7 +1663,7 @@ const AdminDashboard = () => {
 
   const processCustomPrompt = async (prompt, staff, shifts, systemStats) => {
     const startTime = Date.now();
-    
+
     // Analyze the prompt to understand what the user is asking for
     const promptLower = prompt.toLowerCase();
     let response = '';
@@ -1680,16 +1680,16 @@ const AdminDashboard = () => {
         startTime: shift['First Start Time'],
         currentDuration: shift['Total Duration']
       }));
-      
+
       if (activeEmployees.length > 0) {
-        response = `Currently active employees: ${activeEmployees.map(emp => 
+        response = `Currently active employees: ${activeEmployees.map(emp =>
           `${emp.name} (${emp.id}) - Status: ${emp.status}`
         ).join(', ')}. Total active: ${activeEmployees.length} employee(s). `;
-        
+
         if (activeEmployees.some(emp => emp.status === 'ON BREAK')) {
           response += 'Some employees are currently on break. ';
         }
-        
+
         recommendations.push('Monitor active employee workload', 'Check break schedules', 'Ensure adequate coverage');
         confidence = 95;
       } else {
@@ -1706,28 +1706,28 @@ const AdminDashboard = () => {
         const status = shift['Status'] || 'Unknown';
         statusBreakdown[status] = (statusBreakdown[status] || 0) + 1;
       });
-      
+
       const recentShifts = shifts.slice(-5);
       response = `Current shift status breakdown: ${Object.entries(statusBreakdown)
         .map(([status, count]) => `${status}: ${count}`)
-        .join(', ')}. Recent activity: ${recentShifts.map(s => 
+        .join(', ')}. Recent activity: ${recentShifts.map(s =>
           `${s['Employee Name']}: ${s['Status']}`
         ).join(', ')}. `;
-      
+
       recommendations.push('Review shift transitions', 'Monitor status accuracy', 'Check for stuck statuses');
       confidence = 92;
     }
 
     // Who is working queries
-    else if ((promptLower.includes('who') && promptLower.includes('work')) || 
-             (promptLower.includes('who') && promptLower.includes('shift')) ||
-             (promptLower.includes('working') && promptLower.includes('now'))) {
-      const workingNow = shifts.filter(shift => 
+    else if ((promptLower.includes('who') && promptLower.includes('work')) ||
+      (promptLower.includes('who') && promptLower.includes('shift')) ||
+      (promptLower.includes('working') && promptLower.includes('now'))) {
+      const workingNow = shifts.filter(shift =>
         shift['Status'] === 'ACTIVE' || shift['Status'] === 'ON BREAK'
       );
-      
+
       if (workingNow.length > 0) {
-        response = `Currently working: ${workingNow.map(shift => 
+        response = `Currently working: ${workingNow.map(shift =>
           `${shift['Employee Name']} (${shift['Status']}${shift['Total Duration'] ? `, ${shift['Total Duration']}h so far` : ''})`
         ).join(', ')}. `;
         recommendations.push('Monitor current shifts', 'Check progress', 'Ensure break compliance');
@@ -1745,9 +1745,9 @@ const AdminDashboard = () => {
         const avgShiftsPerEmployee = shifts.length / staff.length;
         const totalHours = shifts.reduce((sum, shift) => sum + getDurationFromShift(shift), 0);
         const avgHoursPerEmployee = totalHours / staff.length;
-        
+
         response = `Staff performance analysis: You have ${staff.length} employees with an average of ${avgShiftsPerEmployee.toFixed(1)} shifts per employee. Average working hours per employee is ${avgHoursPerEmployee.toFixed(1)} hours. `;
-        
+
         if (avgHoursPerEmployee > 40) {
           response += 'Your team shows high engagement with above-average working hours. ';
           recommendations.push('Consider workload balance to prevent burnout');
@@ -1755,15 +1755,15 @@ const AdminDashboard = () => {
           response += 'Your team has relatively low working hours. ';
           recommendations.push('Consider increasing schedule availability or shifts');
         }
-        
+
         recommendations.push('Implement regular performance reviews', 'Track individual productivity metrics');
       } else if (promptLower.includes('list') || promptLower.includes('all') || promptLower.includes('who are')) {
-        const employeeList = staff.map(emp => 
+        const employeeList = staff.map(emp =>
           `${emp.name} (${emp.employeeId || emp.staffId}) - ${emp.role} in ${emp.department || 'General'}`
         );
-        
+
         response = `Your team consists of: ${employeeList.join(', ')}. Total staff: ${staff.length}. `;
-        
+
         const roleBreakdown = {};
         const deptBreakdown = {};
         staff.forEach(emp => {
@@ -1772,35 +1772,35 @@ const AdminDashboard = () => {
           roleBreakdown[role] = (roleBreakdown[role] || 0) + 1;
           deptBreakdown[dept] = (deptBreakdown[dept] || 0) + 1;
         });
-        
+
         response += `Roles: ${Object.entries(roleBreakdown).map(([role, count]) => `${role}: ${count}`).join(', ')}. Departments: ${Object.entries(deptBreakdown).map(([dept, count]) => `${dept}: ${count}`).join(', ')}. `;
-        
+
         recommendations.push('Ensure balanced team structure', 'Consider cross-training opportunities');
         confidence = 95;
       } else if (promptLower.includes('department') || promptLower.includes('role')) {
         const departments = {};
         const roles = {};
-        
+
         staff.forEach(emp => {
           const dept = emp.department || 'Unassigned';
           const role = emp.role || 'Staff';
           departments[dept] = (departments[dept] || 0) + 1;
           roles[role] = (roles[role] || 0) + 1;
         });
-        
+
         response = `Department distribution: ${Object.entries(departments).map(([dept, count]) => `${dept}: ${count}`).join(', ')}. Role distribution: ${Object.entries(roles).map(([role, count]) => `${role}: ${count}`).join(', ')}. `;
         recommendations.push('Ensure balanced department coverage', 'Consider cross-training opportunities');
       }
     }
-    
+
     // Shift-related queries
     else if (promptLower.includes('shift') || promptLower.includes('schedule') || promptLower.includes('hours')) {
       if (promptLower.includes('overtime') || promptLower.includes('long')) {
         const longShifts = shifts.filter(shift => getDurationFromShift(shift) > 8);
         const overtimeHours = longShifts.reduce((sum, shift) => sum + (getDurationFromShift(shift) - 8), 0);
-        
+
         response = `Overtime analysis: ${longShifts.length} shifts exceeded 8 hours, totaling ${overtimeHours.toFixed(1)} overtime hours. This represents ${((longShifts.length / shifts.length) * 100).toFixed(1)}% of all shifts. `;
-        
+
         if (overtimeHours > 50) {
           recommendations.push('Review workload distribution to reduce overtime', 'Consider hiring additional staff');
         } else {
@@ -1813,36 +1813,36 @@ const AdminDashboard = () => {
           const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
           dayCount[dayName] = (dayCount[dayName] || 0) + 1;
         });
-        
+
         const mostActiveDay = Object.keys(dayCount).reduce((a, b) => dayCount[a] > dayCount[b] ? a : b);
         const leastActiveDay = Object.keys(dayCount).reduce((a, b) => dayCount[a] < dayCount[b] ? a : b);
-        
+
         response = `Shift patterns show ${mostActiveDay} as the most active day (${dayCount[mostActiveDay]} shifts) and ${leastActiveDay} as least active (${dayCount[leastActiveDay] || 0} shifts). `;
         recommendations.push('Consider balancing shifts across weekdays', 'Analyze customer/business demand patterns');
       }
     }
-    
+
     // Time-related queries
     else if (promptLower.includes('time') || promptLower.includes('duration') || promptLower.includes('average')) {
       const totalHours = shifts.reduce((sum, shift) => sum + (parseFloat(shift['Total Duration']) || 0), 0);
       const avgShiftDuration = totalHours / shifts.length;
       const shortShifts = shifts.filter(shift => parseFloat(shift['Total Duration']) < 6);
       const longShifts = shifts.filter(shift => parseFloat(shift['Total Duration']) > 10);
-      
+
       response = `Time analysis: Average shift duration is ${avgShiftDuration.toFixed(1)} hours. ${shortShifts.length} shifts under 6 hours, ${longShifts.length} shifts over 10 hours. Total tracked time: ${totalHours.toFixed(1)} hours. `;
       recommendations.push('Optimize shift lengths for productivity', 'Monitor fatigue levels in long shifts');
     }
-    
+
     // Default analysis for unclear prompts
     else {
       response = `I analyzed your prompt "${prompt}". Your system has ${staff.length} staff members and ${shifts.length} total shifts. `;
-      
+
       // Try to provide something useful based on current data
       const activeCount = shifts.filter(s => s['Status'] === 'ACTIVE').length;
       const completedCount = shifts.filter(s => s['Status'] === 'COMPLETED').length;
-      
+
       response += `Current status: ${activeCount} active shifts, ${completedCount} completed shifts. `;
-      
+
       if (promptLower.includes('improve') || promptLower.includes('optimize')) {
         recommendations.push('Implement regular data review cycles', 'Use AI analytics for pattern recognition', 'Consider staff feedback in scheduling');
       } else if (promptLower.includes('problem') || promptLower.includes('issue')) {
@@ -1852,21 +1852,21 @@ const AdminDashboard = () => {
       }
       confidence = 70;
     }
-    
+
     // Add contextual insights
     if (promptLower.includes('recommendation') || promptLower.includes('suggest')) {
       confidence = 92;
       response += 'Key recommendations based on your data patterns: ';
     }
-    
+
     if (response === '') {
       response = `I couldn't find specific information for "${prompt}". Try asking about: active employees, current shifts, staff performance, or specific employee names.`;
       recommendations.push('Use specific keywords like "active employees", "who is working", "staff list", or employee names');
       confidence = 50;
     }
-    
+
     const processingTime = Date.now() - startTime;
-    
+
     return {
       response: response.trim(),
       recommendations: recommendations.length > 0 ? recommendations : ['Continue monitoring your workforce metrics'],
@@ -1878,10 +1878,10 @@ const AdminDashboard = () => {
   // Helper function to convert data to CSV
   const convertToCSV = (data, columns) => {
     if (!data || data.length === 0) return '';
-    
+
     // Create header row
     const headers = columns.map(col => col.label).join(',');
-    
+
     // Create data rows
     const rows = data.map(item => {
       return columns.map(col => {
@@ -1891,7 +1891,7 @@ const AdminDashboard = () => {
         return `"${escaped}"`;
       }).join(',');
     });
-    
+
     return [headers, ...rows].join('\n');
   };
 
@@ -1931,33 +1931,33 @@ const AdminDashboard = () => {
     const totalShifts = shifts.length;
     const totalHours = shifts.reduce((sum, shift) => sum + (parseFloat(shift['Total Duration']) || 0), 0);
     const avgDuration = totalShifts > 0 ? (totalHours / totalShifts).toFixed(1) : 0;
-    
+
     // Analyze day patterns
     const dayCount = {};
     const hourCount = {};
     let overtimeHours = 0;
-    
+
     shifts.forEach(shift => {
       const date = new Date(shift['Shift Date']);
       const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
       dayCount[dayName] = (dayCount[dayName] || 0) + 1;
-      
+
       const startTime = shift['First Start Time'];
       if (startTime) {
         const hour = new Date(startTime).getHours();
         hourCount[hour] = (hourCount[hour] || 0) + 1;
       }
-      
+
       const duration = parseFloat(shift['Total Duration']) || 0;
       if (duration > 8) {
         overtimeHours += duration - 8;
       }
     });
-    
+
     const mostActiveDay = Object.keys(dayCount).reduce((a, b) => dayCount[a] > dayCount[b] ? a : b, 'Monday');
     const peakHour = Object.keys(hourCount).reduce((a, b) => hourCount[a] > hourCount[b] ? a : b, '9');
     const peakHours = `${peakHour}:00 - ${parseInt(peakHour) + 1}:00`;
-    
+
     // Generate AI score and recommendations
     const patternScore = Math.min(100, Math.round(
       (totalShifts > 10 ? 30 : totalShifts * 3) +
@@ -1965,13 +1965,13 @@ const AdminDashboard = () => {
       (overtimeHours < totalHours * 0.1 ? 25 : 10) +
       (Object.keys(dayCount).length >= 5 ? 20 : Object.keys(dayCount).length * 4)
     ));
-    
+
     const recommendations = [];
     if (avgDuration > 9) recommendations.push('Consider reducing average shift length');
     if (overtimeHours > totalHours * 0.15) recommendations.push('High overtime detected - review workload distribution');
     if (Object.keys(dayCount).length < 5) recommendations.push('Increase schedule diversity across weekdays');
     if (patternScore > 80) recommendations.push('Excellent shift patterns - maintain current scheduling');
-    
+
     return {
       totalShifts,
       avgDuration,
@@ -1985,36 +1985,36 @@ const AdminDashboard = () => {
 
   const generateProductivityInsights = (staff, shifts) => {
     return staff.map(employee => {
-      const employeeShifts = shifts.filter(shift => 
+      const employeeShifts = shifts.filter(shift =>
         shift['Employee ID'] === employee.staffId || shift['Employee ID'] === employee.employeeId
       );
-      
+
       const totalShifts = employeeShifts.length;
       const totalHours = employeeShifts.reduce((sum, shift) => sum + (parseFloat(shift['Total Duration']) || 0), 0);
       const avgShiftLength = totalShifts > 0 ? (totalHours / totalShifts).toFixed(1) : 0;
-      
+
       // Calculate on-time percentage
       const onTimeShifts = employeeShifts.filter(shift => shift['Status'] !== 'DRAFT').length;
       const onTimePercentage = totalShifts > 0 ? Math.round((onTimeShifts / totalShifts) * 100) : 0;
-      
+
       // Generate productivity score
       const productivityScore = Math.min(100, Math.round(
         (onTimePercentage * 0.4) +
         (totalShifts > 20 ? 30 : totalShifts * 1.5) +
         (avgShiftLength >= 7 && avgShiftLength <= 9 ? 30 : 15)
       ));
-      
+
       const recentShifts = employeeShifts.slice(-10);
       const earlierShifts = employeeShifts.slice(-20, -10);
-      const trend = recentShifts.length > earlierShifts.length ? 'Increasing' : 
-                   recentShifts.length < earlierShifts.length ? 'Decreasing' : 'Stable';
-      
+      const trend = recentShifts.length > earlierShifts.length ? 'Increasing' :
+        recentShifts.length < earlierShifts.length ? 'Decreasing' : 'Stable';
+
       const suggestions = [];
       if (onTimePercentage < 90) suggestions.push('Focus on improving punctuality');
       if (totalShifts < 15) suggestions.push('Consider increasing shift frequency');
       if (avgShiftLength > 10) suggestions.push('Monitor for potential burnout');
       if (productivityScore > 90) suggestions.push('Excellent performance - consider leadership opportunities');
-      
+
       return {
         employeeId: employee.staffId || employee.employeeId,
         name: employee.name,
@@ -2039,12 +2039,12 @@ const AdminDashboard = () => {
         return sum + Math.pow(duration - avgDuration, 2);
       }, 0) / shifts.length
     );
-    
+
     shifts.forEach(shift => {
       const duration = parseFloat(shift['Total Duration']) || 0;
       const shiftDate = new Date(shift['Shift Date']);
       const dayOfWeek = shiftDate.getDay();
-      
+
       // Detect unusual duration
       if (Math.abs(duration - avgDuration) > 2 * stdDev && duration > 0) {
         anomalies.push({
@@ -2060,7 +2060,7 @@ const AdminDashboard = () => {
           recommendation: duration > avgDuration + 2 * stdDev ? 'Review workload and break times' : 'Investigate reason for short shift'
         });
       }
-      
+
       // Detect weekend work patterns
       if ((dayOfWeek === 0 || dayOfWeek === 6) && duration > 6) {
         anomalies.push({
@@ -2077,7 +2077,7 @@ const AdminDashboard = () => {
         });
       }
     });
-    
+
     return anomalies;
   };
 
@@ -2085,29 +2085,29 @@ const AdminDashboard = () => {
     const nextWeek = new Date();
     nextWeek.setDate(nextWeek.getDate() + 7);
     const weekStart = nextWeek.toISOString().split('T')[0];
-    
+
     return staff.map(employee => {
-      const employeeShifts = recentShifts.filter(shift => 
+      const employeeShifts = recentShifts.filter(shift =>
         shift['Employee ID'] === employee.staffId || shift['Employee ID'] === employee.employeeId
       );
-      
+
       const dayFrequency = {};
       const avgDuration = employeeShifts.reduce((sum, shift) => sum + (parseFloat(shift['Total Duration']) || 0), 0) / employeeShifts.length || 8;
-      
+
       employeeShifts.forEach(shift => {
         const date = new Date(shift['Shift Date']);
         const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
         dayFrequency[dayName] = (dayFrequency[dayName] || 0) + 1;
       });
-      
+
       const preferredDays = Object.keys(dayFrequency)
         .sort((a, b) => dayFrequency[b] - dayFrequency[a])
         .slice(0, 3);
-      
+
       const suggestedDays = preferredDays.length > 0 ? preferredDays : ['Monday', 'Wednesday', 'Friday'];
       const optimalHours = Math.round(Math.max(6, Math.min(10, avgDuration)));
       const reasoning = `Based on ${employeeShifts.length} recent shifts, employee shows strong performance on ${suggestedDays[0]}`;
-      
+
       return {
         weekStart,
         employeeId: employee.staffId || employee.employeeId,
@@ -2176,36 +2176,36 @@ const AdminDashboard = () => {
     setLoading(true);
     try {
       const dateRange = getDateRangeForPeriod(shiftsTimePeriod, shiftsCustomDateRange);
-      
+
       const response = await makeAPICall({
         action: 'getAllShiftsForAdmin',
         startDate: dateRange.start,
         endDate: dateRange.end
       });
-      
+
       if (response.success) {
         // ✅ VALIDATE AND FIX STATUS INCONSISTENCIES BEFORE PROCESSING
         console.log('🔄 ADMIN SHIFTS TAB: Running validation-detection-fix cycle...');
         const validationResult = await validateAndFixShiftStatuses(response.data);
-        
+
         let dataToProcess = response.data;
-        
+
         if (validationResult.needsRefresh) {
           console.log(`🔄 ADMIN SHIFTS TAB RE-FETCHING: ${validationResult.fixedCount} shifts fixed, getting fresh data...`);
-          
+
           const freshResponse = await makeAPICall({
             action: 'getAllShiftsForAdmin',
             startDate: dateRange.start,
             endDate: dateRange.end,
             forceRefresh: true
           });
-          
+
           if (freshResponse.success) {
             dataToProcess = freshResponse.data;
             setMessage(`✅ ${validationResult.fixedCount} shift status(es) corrected and ${freshResponse.data.length} shifts loaded`);
           }
         }
-        
+
         // Hold raw data for debugging, and normalized data for display
         setRawShiftsData(dataToProcess);
         console.log('=== DEBUG: Backend Response ===');
@@ -2214,21 +2214,21 @@ const AdminDashboard = () => {
           console.log('First record keys:', Object.keys(dataToProcess[0]));
           console.log('First record:', dataToProcess[0]);
         }
-        
+
         // Apply smart status calculation to each record
         const normalizedData = [];
         const statusUpdates = [];
-        
+
         console.log('🚀 Starting normalization loop for', dataToProcess.length, 'records');
-        
+
         try {
           for (const rec of dataToProcess) {
             console.log('📝 Processing record:', rec['Shift ID']);
-            
+
             try {
               const normalized = await normalizeRecord(rec);
               normalizedData.push(normalized);
-              
+
               // DETAILED DEBUG: Check every field of normalized record
               console.log('🔍 === NORMALIZED RECORD COMPLETE DEBUG ===');
               console.log('Shift ID:', normalized['Shift ID']);
@@ -2237,7 +2237,7 @@ const AdminDashboard = () => {
               console.log('Status Calculated Flag:', normalized['_statusCalculated']);
               console.log('Current Status Field:', normalized['Status']);
               console.log('===========================================');
-              
+
               // If status was calculated differently, prepare for backend sync
               if (normalized['_statusCalculated']) {
                 console.log('✅ STATUS UPDATE NEEDED - Adding to status updates array');
@@ -2259,23 +2259,23 @@ const AdminDashboard = () => {
         } catch (loopError) {
           console.error('❌ Error in normalization loop:', loopError);
         }
-        
+
         console.log('🎯 === NORMALIZATION LOOP COMPLETED ===');
         console.log('Normalized data count:', normalizedData.length);
         console.log('Status updates count:', statusUpdates.length);
-        
+
         console.log('=== DEBUG: After Smart Status Calculation ===');
         if (normalizedData.length > 0) {
           console.log('Normalized first record:', normalizedData[0]);
         }
-        
+
         console.log('🔍 Status updates array:', statusUpdates);
         console.log('📊 Status updates count:', statusUpdates.length);
-        
+
         if (statusUpdates.length > 0) {
           console.log('=== Status Updates Needed ===');
           console.log(statusUpdates);
-          
+
           // Sync status updates with backend
           for (const update of statusUpdates) {
             console.log(`🚀 Processing update for shift ${update.shiftId}:`, update);
@@ -2287,10 +2287,10 @@ const AdminDashboard = () => {
         } else {
           console.log('⭐ No status updates needed - all statuses match');
         }
-        
+
         setShiftsData(normalizedData);
         setShowShiftsTable(true);
-        
+
         if (!validationResult.needsRefresh) {
           setMessage(`Loaded ${dataToProcess.length} shifts for ${timePeriodOptions.find(o => o.value === shiftsTimePeriod)?.label}`);
         }
@@ -2307,23 +2307,23 @@ const AdminDashboard = () => {
   // Apply column filters for shifts
   const getFilteredShiftsData = () => {
     let filtered = [...shiftsData];
-    
+
     // Apply column filters
     Object.keys(shiftsColumnFilters).forEach(column => {
       const filterValue = shiftsColumnFilters[column];
       if (filterValue) {
-        filtered = filtered.filter(row => 
+        filtered = filtered.filter(row =>
           String(row[column] || '').toLowerCase().includes(filterValue.toLowerCase())
         );
       }
     });
-    
+
     // Apply sorting
     if (sortConfig.key) {
       filtered.sort((a, b) => {
         const aVal = a[sortConfig.key];
         const bVal = b[sortConfig.key];
-        
+
         // Handle different data types
         if (sortConfig.key === 'shiftDate') {
           const aDate = new Date(aVal);
@@ -2349,7 +2349,7 @@ const AdminDashboard = () => {
         }
       });
     }
-    
+
     return filtered;
   };
 
@@ -2364,7 +2364,7 @@ const AdminDashboard = () => {
   // Format data for display
   const formatCellData = (value, columnKey, row = {}) => {
     if (!value && value !== 0) return '-';
-    
+
     switch (columnKey) {
       case 'employeeName':
         // Ensure employee names are properly formatted and not showing IDs
@@ -2376,7 +2376,7 @@ const AdminDashboard = () => {
           return value.trim() || '-';
         }
         return value || '-';
-        
+
       case 'employeeID':
         // Format employee ID consistently and detect if it's actually a name
         if (typeof value === 'string') {
@@ -2387,7 +2387,7 @@ const AdminDashboard = () => {
           return value.trim() || '-';
         }
         return value || '-';
-        
+
       case 'shiftType':
         // Handle shift type formatting
         if (typeof value === 'string') {
@@ -2397,7 +2397,7 @@ const AdminDashboard = () => {
           return clean.charAt(0).toUpperCase() + clean.slice(1).toLowerCase();
         }
         return value || '-';
-        
+
       case 'startTime':
       case 'endTime':
       case 'First Start Time':
@@ -2414,9 +2414,9 @@ const AdminDashboard = () => {
               const date = new Date(value);
               if (isNaN(date.getTime())) return value;
               // For time-only display, extract just the time part in user's local timezone
-              return date.toLocaleTimeString('en-US', { 
-                hour12: false, 
-                hour: '2-digit', 
+              return date.toLocaleTimeString('en-US', {
+                hour12: false,
+                hour: '2-digit',
                 minute: '2-digit'
                 // No timeZone specified = automatic system timezone detection
               });
@@ -2434,7 +2434,7 @@ const AdminDashboard = () => {
           }
         }
         return value;
-        
+
       case 'Shift Date':
       case 'shiftDate':
         // Format date from ISO string to readable format
@@ -2458,7 +2458,7 @@ const AdminDashboard = () => {
           return value;
         }
         return value;
-        
+
       case 'Created At':
       case 'Last Updated':
         // Format timestamp from ISO string to readable format
@@ -2467,12 +2467,12 @@ const AdminDashboard = () => {
           if (value.includes('T') || value.includes('Z') || value.match(/^\d{4}-\d{2}-\d{2}/)) {
             try {
               const date = new Date(value);
-              
+
               // Check for invalid or bogus dates (like 1899 Excel epoch)
               if (isNaN(date.getTime()) || date.getFullYear() < 2020) {
                 return 'Invalid Date';
               }
-              
+
               return date.toLocaleString('en-US', {
                 year: 'numeric',
                 month: 'short',
@@ -2490,7 +2490,7 @@ const AdminDashboard = () => {
           return value;
         }
         return value;
-        
+
       case 'totalTime':
       case 'Total Duration':
         // Format total time as hours with fallback to segments data
@@ -2498,10 +2498,10 @@ const AdminDashboard = () => {
           console.warn('formatCellData: No row data available for Total Duration');
           return typeof value === 'number' && value > 0 ? `${value.toFixed(1)}h` : '-';
         }
-        
+
         const duration = getDurationFromShift(row);
         return duration > 0 ? `${duration.toFixed(1)}h` : '-';
-        
+
       case 'Number of Segments':
       case 'numberOfSegments':
         // Format segment count
@@ -2512,7 +2512,7 @@ const AdminDashboard = () => {
           return parseInt(value).toString();
         }
         return value || '0';
-        
+
       case 'segments':
       case 'Segments Data':
         // Format segments count or description
@@ -2568,7 +2568,7 @@ const AdminDashboard = () => {
           return `${value} segment${value !== 1 ? 's' : ''}`;
         }
         return value || '0 segments';
-        
+
       case 'lastUpdate':
         // Format last update timestamp
         if (typeof value === 'string' && (value.includes('T') || value.includes('Z'))) {
@@ -2577,14 +2577,14 @@ const AdminDashboard = () => {
             if (isNaN(date.getTime())) return value;
             const now = new Date();
             const diffHours = (now - date) / (1000 * 60 * 60);
-            
+
             if (diffHours < 1) {
               return 'Just now';
             } else if (diffHours < 24) {
               return `${Math.floor(diffHours)}h ago`;
             } else {
-              return date.toLocaleDateString('en-US', { 
-                month: 'short', 
+              return date.toLocaleDateString('en-US', {
+                month: 'short',
                 day: 'numeric',
                 hour: '2-digit',
                 minute: '2-digit'
@@ -2595,7 +2595,7 @@ const AdminDashboard = () => {
           }
         }
         return value;
-        
+
       case 'shiftDate':
         // Format date consistently
         if (typeof value === 'string') {
@@ -2617,7 +2617,7 @@ const AdminDashboard = () => {
           }
         }
         return value;
-        
+
       case 'comments':
         // Format and display comments properly
         if (!value || value === '' || value === null || value === undefined) {
@@ -2636,7 +2636,7 @@ const AdminDashboard = () => {
           return cleanComment;
         }
         return value || '-';
-        
+
       case 'segmentCount':
         // Format segment count
         if (typeof value === 'number') {
@@ -2647,14 +2647,14 @@ const AdminDashboard = () => {
           return `${count} segment${count !== 1 ? 's' : ''}`;
         }
         return value || '0 segments';
-        
+
       case 'initialSegmentData':
         // Format initial segment data
         if (typeof value === 'string' && value.includes('{')) {
           return 'Initial data';
         }
         return value || '-';
-        
+
       case 'Updated':
         // Format updated flag
         if (value === 'Yes' || value === true || value === 'TRUE' || value === 'true') {
@@ -2664,62 +2664,60 @@ const AdminDashboard = () => {
           return '❌ No';
         }
         return value || '-';
-        
+
       case 'Time Zone':
         // Format timezone display
         if (!value || value === 'Not Set' || value === '') {
           return '🌍 Not Set';
         }
         return `🌍 ${value}`;
-        
+
       case 'Status':
         // Enhanced status display with smart status indicators
         const isCalculated = value !== undefined && typeof value === 'object' && value._statusCalculated;
         const displayStatus = isCalculated ? value._smartStatus : value;
         const originalStatus = isCalculated ? value._originalStatus : value;
-        
+
         if (isCalculated && displayStatus !== originalStatus) {
           return (
             <span>
-              <span className={`badge ${
-                displayStatus === 'ACTIVE' ? 'bg-success' :
+              <span className={`badge ${displayStatus === 'ACTIVE' ? 'bg-success' :
                 displayStatus === 'COMPLETED' ? 'bg-primary' :
-                displayStatus === 'OFFLINE' ? 'bg-secondary' :
-                'bg-warning'
-              }`}>
+                  displayStatus === 'OFFLINE' ? 'bg-secondary' :
+                    'bg-warning'
+                }`}>
                 {displayStatus}
               </span>
               <small className="text-muted ms-1">📊</small>
             </span>
           );
         }
-        
+
         return (
-          <span className={`badge ${
-            displayStatus === 'ACTIVE' ? 'bg-success' :
+          <span className={`badge ${displayStatus === 'ACTIVE' ? 'bg-success' :
             displayStatus === 'COMPLETED' ? 'bg-primary' :
-            displayStatus === 'OFFLINE' ? 'bg-secondary' :
-            'bg-warning'
-          }`}>
+              displayStatus === 'OFFLINE' ? 'bg-secondary' :
+                'bg-warning'
+            }`}>
             {displayStatus || 'DRAFT'}
           </span>
         );
-        
+
       case 'id':
         // Format shift ID for better display
         if (typeof value === 'string' && value.length > 10) {
           return value.substring(0, 8) + '...';
         }
         return value || '-';
-        
+
       case 'timeStamp':
         // Format creation timestamp
         if (typeof value === 'string' && (value.includes('T') || value.includes('Z'))) {
           try {
             const date = new Date(value);
             if (isNaN(date.getTime())) return value;
-            return date.toLocaleDateString('en-US', { 
-              month: 'short', 
+            return date.toLocaleDateString('en-US', {
+              month: 'short',
               day: 'numeric',
               year: '2-digit',
               hour: '2-digit',
@@ -2730,11 +2728,11 @@ const AdminDashboard = () => {
           }
         }
         return value || '-';
-        
+
       case 'rowIndex':
         // Display sheet row number
         return `Row ${value}`;
-        
+
       default:
         return value || '-';
     }
@@ -2762,16 +2760,16 @@ const AdminDashboard = () => {
       console.log('=== SAVING SHIFT EDIT ===');
       console.log('Shift ID:', shiftId);
       console.log('Edit Form Data:', editFormData);
-      
+
       // Create proper timestamp in the format: 2025-10-10 16:12:26
       const now = new Date();
-      const fullTimestamp = now.getFullYear() + '-' + 
-                           String(now.getMonth() + 1).padStart(2, '0') + '-' + 
-                           String(now.getDate()).padStart(2, '0') + ' ' + 
-                           String(now.getHours()).padStart(2, '0') + ':' + 
-                           String(now.getMinutes()).padStart(2, '0') + ':' + 
-                           String(now.getSeconds()).padStart(2, '0');
-      
+      const fullTimestamp = now.getFullYear() + '-' +
+        String(now.getMonth() + 1).padStart(2, '0') + '-' +
+        String(now.getDate()).padStart(2, '0') + ' ' +
+        String(now.getHours()).padStart(2, '0') + ':' +
+        String(now.getMinutes()).padStart(2, '0') + ':' +
+        String(now.getSeconds()).padStart(2, '0');
+
       // Prepare the update data in the format the backend expects
       const updateData = {
         shiftId: shiftId,
@@ -2786,18 +2784,18 @@ const AdminDashboard = () => {
           lastUpdated: fullTimestamp  // Send full timestamp from frontend
         }
       };
-      
+
       console.log('Formatted update data:', updateData);
       console.log('Full timestamp being sent:', fullTimestamp);
-      
+
       // Use the correct API call that matches backend
       const response = await makeAPICall({
         action: 'updateShiftAsAdmin',
         ...updateData
       });
-      
+
       console.log('Update response:', response);
-      
+
       if (response.success) {
         setMessage('Shift updated successfully');
         setEditingShift(null);
@@ -2831,7 +2829,7 @@ const AdminDashboard = () => {
           action: 'deleteShiftAsAdmin',
           shiftId: shiftId
         });
-        
+
         if (response.success) {
           setMessage('Shift deleted successfully');
           // Reload shifts data
@@ -2852,7 +2850,7 @@ const AdminDashboard = () => {
     setLoading(true);
     try {
       const dateRange = getDateRangeForPeriod(selectedTimePeriod);
-      
+
       console.log('🔍 === ADMIN OVERVIEW DEBUG ===');
       console.log('Selected time period:', selectedTimePeriod);
       console.log('Date range calculated:', dateRange);
@@ -2861,53 +2859,53 @@ const AdminDashboard = () => {
       console.log('Today is:', new Date().toISOString().split('T')[0]);
       console.log('Your data has dates: 2025-10-22, 2025-10-13');
       console.log('===============================');
-      
+
       const response = await makeAPICall({
         action: 'getAllShiftsForAdmin',
         startDate: dateRange.start,
         endDate: dateRange.end
       });
-      
+
       if (response.success) {
         // ✅ VALIDATE AND FIX STATUS INCONSISTENCIES BEFORE PROCESSING
         console.log('🔄 ADMIN OVERVIEW TAB: Running validation-detection-fix cycle...');
         const validationResult = await validateAndFixShiftStatuses(response.data);
-        
+
         let dataToProcess = response.data;
-        
+
         if (validationResult.needsRefresh) {
           console.log(`🔄 ADMIN OVERVIEW TAB RE-FETCHING: ${validationResult.fixedCount} shifts fixed, getting fresh data...`);
-          
+
           const freshResponse = await makeAPICall({
             action: 'getAllShiftsForAdmin',
             startDate: dateRange.start,
             endDate: dateRange.end,
             forceRefresh: true
           });
-          
+
           if (freshResponse.success) {
             dataToProcess = freshResponse.data;
             setMessage(`✅ ${validationResult.fixedCount} shift status(es) corrected and ${freshResponse.data.length} shifts loaded`);
           }
         }
-        
+
         console.log('🔍 === OVERVIEW SECTION: Smart Status Processing ===');
         console.log('Overview data received:', dataToProcess.length, 'records');
-        
+
         // Apply smart status calculation and sync with backend
         const normalizedData = [];
         const statusUpdates = [];
-        
+
         console.log('🚀 Starting overview normalization loop for', dataToProcess.length, 'records');
-        
+
         try {
           for (const rec of dataToProcess) {
             console.log('📝 Overview processing record:', rec['Shift ID']);
-            
+
             try {
               const normalized = await normalizeRecord(rec);
               normalizedData.push(normalized);
-              
+
               // DETAILED DEBUG: Check every field of normalized record
               console.log('🔍 === OVERVIEW NORMALIZED RECORD DEBUG ===');
               console.log('Shift ID:', normalized['Shift ID']);
@@ -2916,7 +2914,7 @@ const AdminDashboard = () => {
               console.log('Status Calculated Flag:', normalized['_statusCalculated']);
               console.log('Current Status Field:', normalized['Status']);
               console.log('=============================================');
-              
+
               // If status was calculated differently, prepare for backend sync
               if (normalized['_statusCalculated']) {
                 console.log('✅ OVERVIEW STATUS UPDATE NEEDED - Adding to status updates array');
@@ -2938,18 +2936,18 @@ const AdminDashboard = () => {
         } catch (loopError) {
           console.error('❌ Error in overview normalization loop:', loopError);
         }
-        
+
         console.log('🎯 === OVERVIEW NORMALIZATION LOOP COMPLETED ===');
         console.log('Overview normalized data count:', normalizedData.length);
         console.log('Overview status updates count:', statusUpdates.length);
-        
+
         console.log('🔍 Overview status updates array:', statusUpdates);
         console.log('📊 Overview status updates count:', statusUpdates.length);
-        
+
         if (statusUpdates.length > 0) {
           console.log('=== Overview Status Updates Needed ===');
           console.log(statusUpdates);
-          
+
           // Sync status updates with backend
           for (const update of statusUpdates) {
             console.log(`🚀 Processing overview update for shift ${update.shiftId}:`, update);
@@ -2961,7 +2959,7 @@ const AdminDashboard = () => {
         } else {
           console.log('⭐ No overview status updates needed - all statuses match');
         }
-        
+
         setOverviewData(normalizedData);
         setShowOverviewTable(true);
         setMessage(`Loaded ${response.data.length} shifts for ${timePeriodOptions.find(o => o.value === selectedTimePeriod)?.label}${statusUpdates.length > 0 ? ` (${statusUpdates.length} status updates synced)` : ''}`);
@@ -2978,16 +2976,16 @@ const AdminDashboard = () => {
   // Apply column filters
   const getFilteredData = () => {
     let filtered = [...overviewData];
-    
+
     Object.keys(columnFilters).forEach(column => {
       const filterValue = columnFilters[column];
       if (filterValue) {
-        filtered = filtered.filter(row => 
+        filtered = filtered.filter(row =>
           String(row[column] || '').toLowerCase().includes(filterValue.toLowerCase())
         );
       }
     });
-    
+
     return filtered;
   };
 
@@ -3099,6 +3097,27 @@ const AdminDashboard = () => {
     }
   };
 
+  const MobileNavItem = ({ icon, label, isActive, onClick, isLoading, isDanger }) => (
+    <button
+      className={`btn btn-link text-decoration-none d-flex flex-column align-items-center justify-content-center p-1 flex-grow-1 ${isActive ? 'text-primary' :
+        isDanger ? 'text-danger' :
+          isDarkMode ? 'text-light opacity-75' : 'text-secondary'
+        }`}
+      onClick={onClick}
+      disabled={isLoading}
+      style={{ transition: 'all 0.2s', border: 'none', background: 'transparent' }}
+    >
+      <div className="position-relative d-flex align-items-center justify-content-center" style={{ height: '24px' }}>
+        {isLoading ? (
+          <div className="spinner-border spinner-border-sm" role="status"></div>
+        ) : (
+          <i className={`bi bi-${icon} fs-5`}></i>
+        )}
+      </div>
+      <span style={{ fontSize: '0.7rem', fontWeight: isActive ? '700' : '500', marginTop: '2px' }}>{label}</span>
+    </button>
+  );
+
   return (
     <div className="min-vh-100 bg-light">
       <style>{`
@@ -3110,8 +3129,15 @@ const AdminDashboard = () => {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
+
+        /* Add padding to body to prevent content being hidden behind bottom navbar on mobile */
+        @media (max-width: 767.98px) {
+          body {
+            padding-bottom: 70px;
+          }
+        }
       `}</style>
-      
+
       {/* Navigation Bar */}
       <nav className="navbar navbar-expand-md navbar-dark bg-danger sticky-top">
         <div className="container-fluid px-3">
@@ -3120,29 +3146,29 @@ const AdminDashboard = () => {
             <span className="d-none d-sm-inline">Admin Dashboard</span>
             <span className="d-inline d-sm-none">Admin</span>
           </span>
-          
-          {/* Tab Navigation */}
-          <div className="navbar-nav me-auto d-flex flex-row">
-            <button 
+
+          {/* Tab Navigation - Hidden on mobile, visible on desktop */}
+          <div className="navbar-nav me-auto d-none d-md-flex flex-row">
+            <button
               className={`btn btn-sm me-2 ${activeTab === 'overview' ? 'btn-light' : 'btn-outline-light'}`}
               onClick={() => setActiveTab('overview')}
             >
               Overview
             </button>
-            <button 
+            <button
               className={`btn btn-sm me-2 ${activeTab === 'summary' ? 'btn-light' : 'btn-outline-light'}`}
               onClick={() => setActiveTab('summary')}
             >
               Summary
             </button>
-            <button 
+            <button
               className={`btn btn-sm me-2 ${activeTab === 'staff' ? 'btn-light' : 'btn-outline-light'}`}
               onClick={() => setActiveTab('staff')}
             >
               Staff
             </button>
           </div>
-          
+
           <div className="navbar-nav ms-auto d-flex flex-row align-items-center">
             <button
               className="theme-toggle me-2"
@@ -3158,8 +3184,8 @@ const AdminDashboard = () => {
             <span className="navbar-text me-3 d-none d-md-inline">
               Welcome, <strong>{user?.name?.split(' ')[0] || 'Admin'}</strong>
             </span>
-            <button 
-              className="btn btn-outline-light btn-sm me-2" 
+            <button
+              className="btn btn-outline-light btn-sm me-2"
               onClick={handleManualStatusUpdate}
               disabled={statusUpdateLoading}
               title={lastUpdateTime ? `Last updated: ${lastUpdateTime.toLocaleTimeString()}` : 'Update all shift statuses'}
@@ -3178,8 +3204,8 @@ const AdminDashboard = () => {
                 </>
               )}
             </button>
-            <button 
-              className="btn btn-outline-light btn-sm" 
+            <button
+              className="btn btn-outline-light btn-sm"
               onClick={logout}
             >
               <i className="bi bi-box-arrow-right me-1"></i>
@@ -3205,7 +3231,7 @@ const AdminDashboard = () => {
             <div className="col-12">
               <h2 className="h4 mb-3">📊 Data Overview & Analysis</h2>
             </div>
-            
+
             {/* Stats Cards */}
             <div className="col-6 col-md-3">
               <div className="card text-center">
@@ -3251,7 +3277,7 @@ const AdminDashboard = () => {
                     {/* Time Period Selection */}
                     <div className="col-12 col-md-4">
                       <label className="form-label small">Select Time Period:</label>
-                      <select 
+                      <select
                         className="form-select"
                         value={selectedTimePeriod}
                         onChange={(e) => setSelectedTimePeriod(e.target.value)}
@@ -3263,14 +3289,14 @@ const AdminDashboard = () => {
                         ))}
                       </select>
                     </div>
-                    
+
                     {/* Custom Date Range (when Custom is selected) */}
                     {selectedTimePeriod === 'custom' && (
                       <>
                         <div className="col-6 col-md-2">
                           <label className="form-label small">Start Date:</label>
-                          <input 
-                            type="date" 
+                          <input
+                            type="date"
                             className="form-control"
                             value={customDateRange.start}
                             onChange={(e) => setCustomDateRange(prev => ({ ...prev, start: e.target.value }))}
@@ -3278,8 +3304,8 @@ const AdminDashboard = () => {
                         </div>
                         <div className="col-6 col-md-2">
                           <label className="form-label small">End Date:</label>
-                          <input 
-                            type="date" 
+                          <input
+                            type="date"
                             className="form-control"
                             value={customDateRange.end}
                             onChange={(e) => setCustomDateRange(prev => ({ ...prev, end: e.target.value }))}
@@ -3287,10 +3313,10 @@ const AdminDashboard = () => {
                         </div>
                       </>
                     )}
-                    
+
                     {/* View Button */}
                     <div className={`col-12 ${selectedTimePeriod === 'custom' ? 'col-md-4' : 'col-md-8'}`}>
-                      <button 
+                      <button
                         className="btn btn-primary w-100"
                         onClick={handleViewData}
                         disabled={loading || (selectedTimePeriod === 'custom' && (!customDateRange.start || !customDateRange.end))}
@@ -3321,25 +3347,25 @@ const AdminDashboard = () => {
                       <div className="col-12">
                         <label className="form-label small fw-bold">Filter by Columns:</label>
                         <div className="row g-2">
-                          {(selectedView === 'complete' 
-                            ? ['Shift ID', 'Employee Name', 'Day', 'Updated', 'Status', 'Number of Segments', 'Shift Type', 'Employee ID'] 
+                          {(selectedView === 'complete'
+                            ? ['Shift ID', 'Employee Name', 'Day', 'Updated', 'Status', 'Number of Segments', 'Shift Type', 'Employee ID']
                             : getOrderedOverviewColumns()
                           ).map(colKey => {
                             const column = appsScriptColumns.find(col => col.key === colKey);
                             return (
                               <div key={colKey} className="col-6 col-md-3">
                                 <div className="input-group input-group-sm">
-                                  <span className="input-group-text" style={{fontSize: '0.75rem'}}>
+                                  <span className="input-group-text" style={{ fontSize: '0.75rem' }}>
                                     {column?.label || colKey}
                                   </span>
-                                  <input 
+                                  <input
                                     type="text"
                                     className="form-control"
                                     placeholder="Filter..."
                                     value={columnFilters[colKey] || ''}
-                                    onChange={(e) => setColumnFilters(prev => ({ 
-                                      ...prev, 
-                                      [colKey]: e.target.value 
+                                    onChange={(e) => setColumnFilters(prev => ({
+                                      ...prev,
+                                      [colKey]: e.target.value
                                     }))}
                                   />
                                 </div>
@@ -3365,7 +3391,7 @@ const AdminDashboard = () => {
                     <div className="row align-items-center">
                       <div className="col-12 col-md-6">
                         <label className="form-label small fw-bold mb-2">Select Column View:</label>
-                        <select 
+                        <select
                           className="form-select"
                           value={selectedView}
                           onChange={(e) => setSelectedView(e.target.value)}
@@ -3394,7 +3420,7 @@ const AdminDashboard = () => {
             {showOverviewTable && (
               <>
                 {/* Summary Box for special time period selections */}
-                {['monthlyAvgPerEmployee','weeklyTotalPerEmployee','weeklyAvgPerEmployee','quarterlyTotalPerEmployee','quarterlyAvgPerEmployee','yearlyAvgPerEmployee','yearlyTotalPerEmployee','allTimeTotalPerEmployee','monthlyTotalPerEmployee','monthlyAverage','weeklyTotal','monthlyTotal','quarterlyTotal','yearlyTotal','allTimeTotal','allTimeAverage'].includes(selectedTimePeriod) && (
+                {['monthlyAvgPerEmployee', 'weeklyTotalPerEmployee', 'weeklyAvgPerEmployee', 'quarterlyTotalPerEmployee', 'quarterlyAvgPerEmployee', 'yearlyAvgPerEmployee', 'yearlyTotalPerEmployee', 'allTimeTotalPerEmployee', 'monthlyTotalPerEmployee', 'monthlyAverage', 'weeklyTotal', 'monthlyTotal', 'quarterlyTotal', 'yearlyTotal', 'allTimeTotal', 'allTimeAverage'].includes(selectedTimePeriod) && (
                   <div className="col-12 mb-3">
                     <div className="card border-info">
                       <div className="card-header bg-info text-white">
@@ -3433,12 +3459,12 @@ const AdminDashboard = () => {
                               const dt = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
                               const dayNum = dt.getUTCDay() || 7;
                               dt.setUTCDate(dt.getUTCDate() + 4 - dayNum);
-                              const yearStart = new Date(Date.UTC(dt.getUTCFullYear(),0,1));
-                              const weekNum = Math.ceil((((dt - yearStart) / 86400000) + 1)/7);
+                              const yearStart = new Date(Date.UTC(dt.getUTCFullYear(), 0, 1));
+                              const weekNum = Math.ceil((((dt - yearStart) / 86400000) + 1) / 7);
                               return { year: dt.getUTCFullYear(), week: weekNum };
                             };
                             const { year, week } = getWeekYear(date);
-                            const weekKey = `${year}-W${String(week).padStart(2,'0')}`;
+                            const weekKey = `${year}-W${String(week).padStart(2, '0')}`;
                             const key = `${name}__${weekKey}`;
                             weekTotals[key] = (weekTotals[key] || 0) + duration;
                           });
@@ -3472,7 +3498,7 @@ const AdminDashboard = () => {
                             if (!dateStr) return;
                             const date = new Date(dateStr);
                             if (isNaN(date)) return;
-                            const monthKey = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`;
+                            const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
                             const key = `${name}__${monthKey}`;
                             monthTotals[key] = (monthTotals[key] || 0) + duration;
                           });
@@ -3480,7 +3506,7 @@ const AdminDashboard = () => {
                           const rows = Object.entries(monthTotals).map(([key, total]) => {
                             const [name, monthKey] = key.split('__');
                             const [year, month] = monthKey.split('-');
-                            const monthName = new Date(year, month-1).toLocaleString('default', { month: 'short' });
+                            const monthName = new Date(year, month - 1).toLocaleString('default', { month: 'short' });
                             return (
                               <tr key={key}>
                                 <td>{name}</td>
@@ -3509,7 +3535,7 @@ const AdminDashboard = () => {
                             if (!dateStr) return;
                             const date = new Date(dateStr);
                             if (isNaN(date)) return;
-                            const monthKey = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`;
+                            const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
                             const key = `${name}__${monthKey}`;
                             monthTotals[key] = (monthTotals[key] || 0) + duration;
                             monthCounts[key] = (monthCounts[key] || 0) + (duration > 0 ? 1 : 0);
@@ -3517,8 +3543,8 @@ const AdminDashboard = () => {
                           const rows = Object.entries(monthTotals).map(([key, total]) => {
                             const [name, monthKey] = key.split('__');
                             const [year, month] = monthKey.split('-');
-                            const monthName = new Date(year, month-1).toLocaleString('default', { month: 'short' });
-                            const avg = monthCounts[key] > 0 ? (total/monthCounts[key]) : 0;
+                            const monthName = new Date(year, month - 1).toLocaleString('default', { month: 'short' });
+                            const avg = monthCounts[key] > 0 ? (total / monthCounts[key]) : 0;
                             return (
                               <tr key={key}>
                                 <td>{name}</td>
@@ -3551,19 +3577,19 @@ const AdminDashboard = () => {
                               const dt = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
                               const dayNum = dt.getUTCDay() || 7;
                               dt.setUTCDate(dt.getUTCDate() + 4 - dayNum);
-                              const yearStart = new Date(Date.UTC(dt.getUTCFullYear(),0,1));
-                              const weekNum = Math.ceil((((dt - yearStart) / 86400000) + 1)/7);
+                              const yearStart = new Date(Date.UTC(dt.getUTCFullYear(), 0, 1));
+                              const weekNum = Math.ceil((((dt - yearStart) / 86400000) + 1) / 7);
                               return { year: dt.getUTCFullYear(), week: weekNum };
                             };
                             const { year, week } = getWeekYear(date);
-                            const weekKey = `${year}-W${String(week).padStart(2,'0')}`;
+                            const weekKey = `${year}-W${String(week).padStart(2, '0')}`;
                             const key = `${name}__${weekKey}`;
                             weekTotals[key] = (weekTotals[key] || 0) + duration;
                             weekCounts[key] = (weekCounts[key] || 0) + (duration > 0 ? 1 : 0);
                           });
                           const rows = Object.entries(weekTotals).map(([key, total]) => {
                             const [name, weekKey] = key.split('__');
-                            const avg = weekCounts[key] > 0 ? (total/weekCounts[key]) : 0;
+                            const avg = weekCounts[key] > 0 ? (total / weekCounts[key]) : 0;
                             return (
                               <tr key={key}>
                                 <td>{name}</td>
@@ -3591,7 +3617,7 @@ const AdminDashboard = () => {
                             if (!dateStr) return;
                             const date = new Date(dateStr);
                             if (isNaN(date)) return;
-                            const quarter = Math.floor(date.getMonth()/3)+1;
+                            const quarter = Math.floor(date.getMonth() / 3) + 1;
                             const quarterKey = `${date.getFullYear()}-Q${quarter}`;
                             const key = `${name}__${quarterKey}`;
                             quarterTotals[key] = (quarterTotals[key] || 0) + duration;
@@ -3626,7 +3652,7 @@ const AdminDashboard = () => {
                             if (!dateStr) return;
                             const date = new Date(dateStr);
                             if (isNaN(date)) return;
-                            const quarter = Math.floor(date.getMonth()/3)+1;
+                            const quarter = Math.floor(date.getMonth() / 3) + 1;
                             const quarterKey = `${date.getFullYear()}-Q${quarter}`;
                             const key = `${name}__${quarterKey}`;
                             quarterTotals[key] = (quarterTotals[key] || 0) + duration;
@@ -3634,7 +3660,7 @@ const AdminDashboard = () => {
                           });
                           const rows = Object.entries(quarterTotals).map(([key, total]) => {
                             const [name, quarterKey] = key.split('__');
-                            const avg = quarterCounts[key] > 0 ? (total/quarterCounts[key]) : 0;
+                            const avg = quarterCounts[key] > 0 ? (total / quarterCounts[key]) : 0;
                             return (
                               <tr key={key}>
                                 <td>{name}</td>
@@ -3703,7 +3729,7 @@ const AdminDashboard = () => {
                           });
                           const rows = Object.entries(yearTotals).map(([key, total]) => {
                             const [name, yearKey] = key.split('__');
-                            const avg = yearCounts[key] > 0 ? (total/yearCounts[key]) : 0;
+                            const avg = yearCounts[key] > 0 ? (total / yearCounts[key]) : 0;
                             return (
                               <tr key={key}>
                                 <td>{name}</td>
@@ -3746,7 +3772,7 @@ const AdminDashboard = () => {
                           );
                         })()}
                         {/* Overall summaries */}
-                        {['monthlyTotal','monthlyAverage','weeklyTotal','quarterlyTotal','yearlyTotal','allTimeTotal','allTimeAverage'].includes(selectedTimePeriod) && (() => {
+                        {['monthlyTotal', 'monthlyAverage', 'weeklyTotal', 'quarterlyTotal', 'yearlyTotal', 'allTimeTotal', 'allTimeAverage'].includes(selectedTimePeriod) && (() => {
                           const durations = getFilteredData().map(shift => parseFloat(shift['Total Duration']) || 0).filter(d => d > 0);
                           let value = 0;
                           let label = '';
@@ -3780,7 +3806,7 @@ const AdminDashboard = () => {
                               {getOrderedOverviewColumns().map(colKey => {
                                 const column = appsScriptColumns.find(col => col.key === colKey);
                                 return (
-                                  <th key={colKey} className="text-nowrap" style={{fontSize: '0.85rem'}}>
+                                  <th key={colKey} className="text-nowrap" style={{ fontSize: '0.85rem' }}>
                                     {column?.label || colKey}
                                   </th>
                                 );
@@ -3796,17 +3822,16 @@ const AdminDashboard = () => {
                                     const column = appsScriptColumns.find(col => col.key === colKey);
                                     const cellValue = shift[colKey];
                                     return (
-                                      <td key={colKey} className="text-nowrap" style={{fontSize: '0.8rem'}}>
+                                      <td key={colKey} className="text-nowrap" style={{ fontSize: '0.8rem' }}>
                                         {/* Special rendering for Status column */}
                                         {colKey === 'Status' ? (
                                           <span>
-                                            <span className={`badge ${
-                                              (shift['_smartStatus'] || cellValue) === 'ACTIVE' ? 'bg-success' :
+                                            <span className={`badge ${(shift['_smartStatus'] || cellValue) === 'ACTIVE' ? 'bg-success' :
                                               (shift['_smartStatus'] || cellValue) === 'COMPLETED' ? 'bg-primary' :
-                                              (shift['_smartStatus'] || cellValue) === 'ON BREAK' ? 'bg-warning text-dark' :
-                                              (shift['_smartStatus'] || cellValue) === 'OFFLINE' ? 'bg-secondary' :
-                                              'bg-info text-dark'
-                                            }`}>
+                                                (shift['_smartStatus'] || cellValue) === 'ON BREAK' ? 'bg-warning text-dark' :
+                                                  (shift['_smartStatus'] || cellValue) === 'OFFLINE' ? 'bg-secondary' :
+                                                    'bg-info text-dark'
+                                              }`}>
                                               {shift['_smartStatus'] || cellValue || 'DRAFT'}
                                             </span>
                                             {shift['_statusCalculated'] && (
@@ -3823,7 +3848,7 @@ const AdminDashboard = () => {
                                           <button
                                             type="button"
                                             className="btn btn-link p-0 font-monospace text-truncate d-inline-block"
-                                            style={{maxWidth: '120px', fontSize: '0.7rem', verticalAlign: 'middle'}}
+                                            style={{ maxWidth: '120px', fontSize: '0.7rem', verticalAlign: 'middle' }}
                                             title="Click to view full data"
                                             onClick={() => {
                                               setSegmentModalTitle(colKey + ' for Shift ' + (shift['Shift ID'] || ''));
@@ -3837,11 +3862,10 @@ const AdminDashboard = () => {
                                           </button>
                                         ) : colKey === 'Updated' ? (
                                           // Special rendering for Updated column (boolean)
-                                          <span className={`badge ${
-                                            cellValue === 'Yes' || cellValue === true || cellValue === 'TRUE' 
-                                              ? 'bg-success' 
-                                              : 'bg-secondary'
-                                          }`}>
+                                          <span className={`badge ${cellValue === 'Yes' || cellValue === true || cellValue === 'TRUE'
+                                            ? 'bg-success'
+                                            : 'bg-secondary'
+                                            }`}>
                                             {cellValue === 'Yes' || cellValue === true || cellValue === 'TRUE' ? 'Yes' : 'No'}
                                           </span>
                                         ) : (
@@ -3869,9 +3893,9 @@ const AdminDashboard = () => {
 
                 {/* Segment Data Modal */}
                 {segmentModalOpen && (
-                  <div 
-                    className="modal fade show" 
-                    style={{display: 'block', background: 'rgba(0,0,0,0.5)'}} 
+                  <div
+                    className="modal fade show"
+                    style={{ display: 'block', background: 'rgba(0,0,0,0.5)' }}
                     tabIndex={-1}
                     role="dialog"
                   >
@@ -3882,7 +3906,7 @@ const AdminDashboard = () => {
                           <button type="button" className="btn-close" aria-label="Close" onClick={() => setSegmentModalOpen(false)}></button>
                         </div>
                         <div className="modal-body">
-                          <pre style={{fontSize: '0.8rem', whiteSpace: 'pre-wrap', wordBreak: 'break-all'}}>{segmentModalContent}</pre>
+                          <pre style={{ fontSize: '0.8rem', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{segmentModalContent}</pre>
                         </div>
                         <div className="modal-footer">
                           <button type="button" className="btn btn-secondary" onClick={() => setSegmentModalOpen(false)}>
@@ -3904,7 +3928,7 @@ const AdminDashboard = () => {
             <div className="col-12">
               <h2 className="h4 mb-3">📊 Employee Summary Calendar</h2>
             </div>
-            
+
             {/* Summary Controls */}
             <div className="col-12">
               <div className="card">
@@ -3916,7 +3940,7 @@ const AdminDashboard = () => {
                     {/* Date Range Selection */}
                     <div className="col-12 col-md-3">
                       <label className="form-label small">Date Range:</label>
-                      <select 
+                      <select
                         className="form-select"
                         value={summaryDateRange}
                         onChange={(e) => setSummaryDateRange(e.target.value)}
@@ -3928,14 +3952,14 @@ const AdminDashboard = () => {
                         <option value="custom">Custom Range</option>
                       </select>
                     </div>
-                    
+
                     {/* Custom Date Range */}
                     {summaryDateRange === 'custom' && (
                       <>
                         <div className="col-6 col-md-2">
                           <label className="form-label small">Start Date:</label>
-                          <input 
-                            type="date" 
+                          <input
+                            type="date"
                             className="form-control"
                             value={summaryCustomRange.start}
                             onChange={(e) => setSummaryCustomRange(prev => ({ ...prev, start: e.target.value }))}
@@ -3943,8 +3967,8 @@ const AdminDashboard = () => {
                         </div>
                         <div className="col-6 col-md-2">
                           <label className="form-label small">End Date:</label>
-                          <input 
-                            type="date" 
+                          <input
+                            type="date"
                             className="form-control"
                             value={summaryCustomRange.end}
                             onChange={(e) => setSummaryCustomRange(prev => ({ ...prev, end: e.target.value }))}
@@ -3952,11 +3976,11 @@ const AdminDashboard = () => {
                         </div>
                       </>
                     )}
-                    
+
                     {/* Show Drafts Toggle - Matching user's screenshot */}
                     <div className="col-12 col-md-2">
                       <label className="form-label small">Show Drafts:</label>
-                      <select 
+                      <select
                         className="form-select"
                         value={showDrafts ? 'Yes' : 'No'}
                         onChange={(e) => setShowDrafts(e.target.value === 'Yes')}
@@ -3965,11 +3989,11 @@ const AdminDashboard = () => {
                         <option value="No">No</option>
                       </select>
                     </div>
-                    
+
                     {/* Employee Status Filter */}
                     <div className="col-12 col-md-2">
                       <label className="form-label small">Employee Status:</label>
-                      <select 
+                      <select
                         className="form-select"
                         value={employeeStatusFilter}
                         onChange={(e) => setEmployeeStatusFilter(e.target.value)}
@@ -3979,11 +4003,11 @@ const AdminDashboard = () => {
                         <option value="inactive">Inactive Only</option>
                       </select>
                     </div>
-                    
+
                     {/* Action buttons */}
                     <div className="col-12 col-md-3">
                       <div className="d-flex gap-2">
-                        <button 
+                        <button
                           className="btn btn-primary flex-fill"
                           onClick={handleLoadSummaryData}
                           disabled={summaryLoading || (summaryDateRange === 'custom' && (!summaryCustomRange.start || !summaryCustomRange.end))}
@@ -3995,8 +4019,8 @@ const AdminDashboard = () => {
                           )}
                           Load
                         </button>
-                        
-                        <button 
+
+                        <button
                           className="btn btn-outline-success"
                           onClick={downloadCalendarCSV}
                           disabled={!calendarData.calendar}
@@ -4023,23 +4047,23 @@ const AdminDashboard = () => {
                   </div>
                   <div className="card-body">
                     <div className="table-responsive">
-                      <table className="table table-bordered table-sm mb-0" style={{fontSize: '0.8rem'}}>
+                      <table className="table table-bordered table-sm mb-0" style={{ fontSize: '0.8rem' }}>
                         <thead className="table-light">
                           <tr>
-                            <th className="text-center" style={{minWidth: '120px'}}>Date</th>
+                            <th className="text-center" style={{ minWidth: '120px' }}>Date</th>
                             {calendarData.employees?.map(empName => (
-                              <th key={empName} className="text-center" style={{minWidth: '80px'}}>
+                              <th key={empName} className="text-center" style={{ minWidth: '80px' }}>
                                 {empName}
                               </th>
                             ))}
-                            <th className="text-center bg-info text-white" style={{minWidth: '80px'}}>Total</th>
+                            <th className="text-center bg-info text-white" style={{ minWidth: '80px' }}>Total</th>
                           </tr>
                         </thead>
                         <tbody>
                           {calendarData.dates?.map(date => {
                             const dateKey = date.toISOString().split('T')[0];
                             const dayData = calendarData.calendar[dateKey];
-                            
+
                             return (
                               <tr key={dateKey}>
                                 <td className="text-center fw-bold">
@@ -4049,7 +4073,7 @@ const AdminDashboard = () => {
                                   const empData = dayData?.employees?.[empName];
                                   const hours = empData?.hours || 0;
                                   const status = empData?.status || 'DRAFT';
-                                  
+
                                   // Determine badge color based on shift status
                                   let badgeClass = 'badge ';
                                   if (status === 'DRAFT') {
@@ -4061,7 +4085,7 @@ const AdminDashboard = () => {
                                   } else {
                                     badgeClass += 'bg-secondary'; // Default grey
                                   }
-                                  
+
                                   return (
                                     <td key={empName} className="text-center">
                                       {hours > 0 ? (
@@ -4086,7 +4110,7 @@ const AdminDashboard = () => {
                               </tr>
                             );
                           })}
-                          
+
                           {/* Total Row */}
                           <tr className="table-warning">
                             <td className="text-center fw-bold">Total</td>
@@ -4096,7 +4120,7 @@ const AdminDashboard = () => {
                                 const empData = calendarData.calendar[dateKey]?.employees?.[empName];
                                 return sum + (empData?.hours || 0);
                               }, 0) || 0;
-                              
+
                               return (
                                 <td key={empName} className="text-center fw-bold">
                                   {empTotal > 0 ? (
@@ -4119,7 +4143,7 @@ const AdminDashboard = () => {
                         </tbody>
                       </table>
                     </div>
-                    
+
                     {/* Summary Stats */}
                     <div className="row mt-3">
                       <div className="col-md-3">
@@ -4170,7 +4194,7 @@ const AdminDashboard = () => {
                 </div>
               </div>
             )}
-            
+
             {/* No Data Message */}
             {!summaryLoading && !calendarData.calendar && (
               <div className="col-12">
@@ -4179,7 +4203,7 @@ const AdminDashboard = () => {
                     <i className="bi bi-calendar-x display-1 text-muted mb-3"></i>
                     <h5 className="text-muted mb-2">No Summary Data</h5>
                     <p className="text-muted mb-3">Select a date range and click "Load Summary" to view the calendar.</p>
-                    <button 
+                    <button
                       className="btn btn-outline-primary"
                       onClick={handleLoadSummaryData}
                       disabled={summaryLoading}
@@ -4210,7 +4234,7 @@ const AdminDashboard = () => {
                     )}
                   </h5>
                   <div className="d-flex gap-2">
-                    <button 
+                    <button
                       className="btn btn-sm btn-outline-secondary"
                       onClick={handleRefreshStaffList}
                       disabled={loading}
@@ -4219,7 +4243,7 @@ const AdminDashboard = () => {
                       <i className={`bi bi-arrow-clockwise ${loading ? 'spin' : ''}`}></i>
                       {loading ? '' : ' Refresh'}
                     </button>
-                    <button 
+                    <button
                       className="btn btn-sm btn-primary"
                       onClick={handleAddStaff}
                       disabled={loading}
@@ -4256,15 +4280,14 @@ const AdminDashboard = () => {
                               <td>{staff.name}</td>
                               <td>{staff.email}</td>
                               <td>
-                                <span className={`badge ${
-                                  staff.role === 'Admin' ? 'bg-danger' : 'bg-info'
-                                }`}>
+                                <span className={`badge ${staff.role === 'Admin' ? 'bg-danger' : 'bg-info'
+                                  }`}>
                                   {staff.role}
                                 </span>
                               </td>
                               <td>{staff.department}</td>
                               <td>
-                                <button 
+                                <button
                                   className="btn btn-sm btn-outline-primary me-1"
                                   onClick={() => handleEditStaff(staff)}
                                   disabled={loading}
@@ -4272,7 +4295,7 @@ const AdminDashboard = () => {
                                 >
                                   <i className="bi bi-pencil"></i>
                                 </button>
-                                <button 
+                                <button
                                   className="btn btn-sm btn-outline-danger"
                                   onClick={() => handleDeleteStaff(staff)}
                                   disabled={loading}
@@ -4290,7 +4313,7 @@ const AdminDashboard = () => {
                     <div className="text-center py-4">
                       <i className="bi bi-people display-1 text-muted"></i>
                       <p className="text-muted mt-2 mb-3">No staff members found</p>
-                      <button 
+                      <button
                         className="btn btn-sm btn-outline-primary"
                         onClick={handleRefreshStaffList}
                         disabled={loading}
@@ -4317,9 +4340,9 @@ const AdminDashboard = () => {
             <div className="modal-content">
               <div className="modal-header">
                 <h5 className="modal-title">Add New Staff Member</h5>
-                <button 
-                  type="button" 
-                  className="btn-close" 
+                <button
+                  type="button"
+                  className="btn-close"
                   onClick={() => setShowAddStaffModal(false)}
                 ></button>
               </div>
@@ -4331,7 +4354,7 @@ const AdminDashboard = () => {
                       type="text"
                       className="form-control"
                       value={newStaffData.employeeId}
-                      onChange={(e) => setNewStaffData({...newStaffData, employeeId: e.target.value})}
+                      onChange={(e) => setNewStaffData({ ...newStaffData, employeeId: e.target.value })}
                       placeholder="Enter Employee ID (e.g., EMP003)"
                     />
                   </div>
@@ -4341,7 +4364,7 @@ const AdminDashboard = () => {
                       type="text"
                       className="form-control"
                       value={newStaffData.name}
-                      onChange={(e) => setNewStaffData({...newStaffData, name: e.target.value})}
+                      onChange={(e) => setNewStaffData({ ...newStaffData, name: e.target.value })}
                       placeholder="Enter full name"
                     />
                   </div>
@@ -4351,7 +4374,7 @@ const AdminDashboard = () => {
                       type="email"
                       className="form-control"
                       value={newStaffData.email}
-                      onChange={(e) => setNewStaffData({...newStaffData, email: e.target.value})}
+                      onChange={(e) => setNewStaffData({ ...newStaffData, email: e.target.value })}
                       placeholder="Enter email address"
                     />
                   </div>
@@ -4360,7 +4383,7 @@ const AdminDashboard = () => {
                     <select
                       className="form-select"
                       value={newStaffData.role}
-                      onChange={(e) => setNewStaffData({...newStaffData, role: e.target.value})}
+                      onChange={(e) => setNewStaffData({ ...newStaffData, role: e.target.value })}
                     >
                       <option value="Staff">Staff</option>
                       <option value="Admin">Admin</option>
@@ -4372,22 +4395,22 @@ const AdminDashboard = () => {
                       type="text"
                       className="form-control"
                       value={newStaffData.department}
-                      onChange={(e) => setNewStaffData({...newStaffData, department: e.target.value})}
+                      onChange={(e) => setNewStaffData({ ...newStaffData, department: e.target.value })}
                       placeholder="Enter department"
                     />
                   </div>
                 </form>
               </div>
               <div className="modal-footer">
-                <button 
-                  type="button" 
-                  className="btn btn-secondary" 
+                <button
+                  type="button"
+                  className="btn btn-secondary"
                   onClick={() => setShowAddStaffModal(false)}
                 >
                   Cancel
                 </button>
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   className="btn btn-primary"
                   onClick={handleSaveNewStaff}
                   disabled={loading}
@@ -4407,9 +4430,9 @@ const AdminDashboard = () => {
             <div className="modal-content">
               <div className="modal-header">
                 <h5 className="modal-title">Edit Staff Member</h5>
-                <button 
-                  type="button" 
-                  className="btn-close" 
+                <button
+                  type="button"
+                  className="btn-close"
                   onClick={() => setEditingStaff(null)}
                 ></button>
               </div>
@@ -4431,7 +4454,7 @@ const AdminDashboard = () => {
                       type="text"
                       className="form-control"
                       value={editingStaff.name}
-                      onChange={(e) => setEditingStaff({...editingStaff, name: e.target.value})}
+                      onChange={(e) => setEditingStaff({ ...editingStaff, name: e.target.value })}
                     />
                   </div>
                   <div className="mb-3">
@@ -4440,7 +4463,7 @@ const AdminDashboard = () => {
                       type="email"
                       className="form-control"
                       value={editingStaff.email}
-                      onChange={(e) => setEditingStaff({...editingStaff, email: e.target.value})}
+                      onChange={(e) => setEditingStaff({ ...editingStaff, email: e.target.value })}
                     />
                   </div>
                   <div className="mb-3">
@@ -4448,7 +4471,7 @@ const AdminDashboard = () => {
                     <select
                       className="form-select"
                       value={editingStaff.role}
-                      onChange={(e) => setEditingStaff({...editingStaff, role: e.target.value})}
+                      onChange={(e) => setEditingStaff({ ...editingStaff, role: e.target.value })}
                     >
                       <option value="Staff">Staff</option>
                       <option value="Admin">Admin</option>
@@ -4460,21 +4483,21 @@ const AdminDashboard = () => {
                       type="text"
                       className="form-control"
                       value={editingStaff.department}
-                      onChange={(e) => setEditingStaff({...editingStaff, department: e.target.value})}
+                      onChange={(e) => setEditingStaff({ ...editingStaff, department: e.target.value })}
                     />
                   </div>
                 </form>
               </div>
               <div className="modal-footer">
-                <button 
-                  type="button" 
-                  className="btn btn-secondary" 
+                <button
+                  type="button"
+                  className="btn btn-secondary"
                   onClick={() => setEditingStaff(null)}
                 >
                   Cancel
                 </button>
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   className="btn btn-primary"
                   onClick={handleSaveStaffEdit}
                   disabled={loading}
@@ -4486,6 +4509,48 @@ const AdminDashboard = () => {
           </div>
         </div>
       )}
+      {/* Mobile Bottom Navigation */}
+      <div
+        className={`d-block d-md-none fixed-bottom ${isDarkMode ? 'bg-dark' : 'bg-white border-top'} shadow-lg`}
+        style={{
+          zIndex: 1030,
+          paddingBottom: 'env(safe-area-inset-bottom)',
+          borderTop: isDarkMode ? '1px solid #495057' : ''
+        }}
+      >
+        <div className="d-flex justify-content-around align-items-center py-1">
+          <MobileNavItem
+            icon="bar-chart"
+            label="Overview"
+            isActive={activeTab === 'overview'}
+            onClick={() => setActiveTab('overview')}
+          />
+          <MobileNavItem
+            icon="table"
+            label="Summary"
+            isActive={activeTab === 'summary'}
+            onClick={() => setActiveTab('summary')}
+          />
+          <MobileNavItem
+            icon="people"
+            label="Staff"
+            isActive={activeTab === 'staff'}
+            onClick={() => setActiveTab('staff')}
+          />
+          <MobileNavItem
+            icon="arrow-clockwise"
+            label="Refresh"
+            onClick={handleManualStatusUpdate}
+            isLoading={statusUpdateLoading}
+          />
+          <MobileNavItem
+            icon="box-arrow-right"
+            label="Logout"
+            onClick={logout}
+            isDanger
+          />
+        </div>
+      </div>
     </div>
   );
 };
