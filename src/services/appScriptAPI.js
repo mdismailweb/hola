@@ -844,13 +844,6 @@ const isCurrentTimeAfterShiftEndEnhanced = (currentTime, shiftEndTime) => {
       return true;
     }
 
-    // Second check: Next day scenario (if current time is early morning and shift ended in evening)
-    if (currentHour >= 0 && currentHour <= 8 && shiftHour >= 15) {
-      const adjustedCurrentMinutes = currentMinutes + (24 * 60); // Add 24 hours
-      console.log(`🌅 Next day scenario: Adjusted current ${adjustedCurrentMinutes} vs ${shiftMinutes}`);
-      return adjustedCurrentMinutes > shiftMinutes;
-    }
-
     console.log(`⏳ Still within shift time or before completion`);
     return false;
   } catch (error) {
