@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getEffectiveShiftDate } from '../../utils/dateUtils';
 import { formatTime12Hour } from '../../utils/timeFormat';
 import { useAuth } from '../../contexts/AuthContext';
 import {
