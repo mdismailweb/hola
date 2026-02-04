@@ -1,0 +1,232 @@
+.custom-time-picker-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 20px;
+}
+
+.custom-time-picker-modal {
+  background: white;
+  border-radius: 20px;
+  padding: 20px;
+  width: 100%;
+  max-width: 380px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.time-picker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.time-picker-header h5 {
+  margin: 0;
+  color: #007AFF;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #666;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background 0.2s;
+}
+
+.close-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.time-display {
+  background: linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%);
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+  margin-bottom: 20px;
+  font-size: 36px;
+  font-weight: 300;
+  color: #007AFF;
+  letter-spacing: 2px;
+}
+
+.time-selector-container {
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.time-selector-wrapper {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  position: relative;
+}
+
+.selection-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%;
+  height: 44px;
+  background: rgba(187, 222, 251, 0.4);
+  border-radius: 8px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.time-column {
+  flex: 1;
+  max-width: 100px;
+  position: relative;
+  z-index: 1;
+}
+
+.scroll-container {
+  height: 160px;
+  overflow-y: auto;
+  scroll-snap-type: y mandatory;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  position: relative;
+}
+
+.scroll-container::-webkit-scrollbar {
+  display: none;
+}
+
+.scroll-padding {
+  height: 60px;
+  flex-shrink: 0;
+}
+
+.time-item {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: #999;
+  cursor: pointer;
+  scroll-snap-align: center;
+  transition: all 0.2s;
+  user-select: none;
+}
+
+.time-item.selected {
+  color: #007AFF;
+  font-size: 24px;
+  font-weight: 600;
+  transform: scale(1.1);
+}
+
+.time-item:hover {
+  color: #007AFF;
+}
+
+.period-toggle {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.period-btn {
+  flex: 1;
+  padding: 12px;
+  border: 2px solid #007AFF;
+  background: white;
+  color: #007AFF;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.period-btn.active {
+  background: #007AFF;
+  color: white;
+}
+
+.period-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+}
+
+.action-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.action-buttons button {
+  flex: 1;
+  padding: 14px;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.cancel-btn {
+  background: #F5F5F5;
+  color: #666;
+  border: 1px solid #E0E0E0;
+}
+
+.cancel-btn:hover {
+  background: #E0E0E0;
+}
+
+.done-btn {
+  background: #007AFF;
+  color: white;
+}
+
+.done-btn:hover {
+  background: #0056CC;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.4);
+}
+
+/* Mobile optimizations */
+@media (max-width: 576px) {
+  .custom-time-picker-modal {
+    max-width: 90%;
+  }
+
+  .time-display {
+    font-size: 32px;
+  }
+}

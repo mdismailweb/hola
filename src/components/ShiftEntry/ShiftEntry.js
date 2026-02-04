@@ -12,6 +12,7 @@ import {
   getDayNameFromDate
 } from '../../services/appScriptAPI';
 import TimeSegmentEntry from '../TimeSegmentEntry/TimeSegmentEntry';
+import CustomTimePicker from '../CustomTimePicker/CustomTimePicker';
 
 const ShiftEntry = ({ refreshTrigger }) => {
   const { user } = useAuth();
@@ -37,6 +38,11 @@ const ShiftEntry = ({ refreshTrigger }) => {
   const [quickAddSegments, setQuickAddSegments] = useState([]);
   const [quickAddShiftType, setQuickAddShiftType] = useState('Regular');
   const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0, isProcessing: false, errors: [] });
+
+  // Mobile custom time picker state
+  const [showMobileTimePicker, setShowMobileTimePicker] = useState(false);
+  const [timePickerField, setTimePickerField] = useState(null); // 'start' or 'end'
+  const [isMobileView, setIsMobileView] = useState(window.innerWidth < 768);
 
   // Enhanced Smart Status Calculation (synchronized with AdminDashboard)
   // Enhanced status determination using the same robust logic as ShiftHistory
@@ -297,6 +303,39 @@ const ShiftEntry = ({ refreshTrigger }) => {
     });
     setQuickAddShiftType('Regular');
     setBulkProgress({ current: 0, total: 0, isProcessing: false, errors: [] });
+  };
+
+  // Mobile detection
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobileView(window.innerWidth < 768);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Handle mobile time picker
+  const handleMobileTimeClick = (field) => {
+    if (isMobileView) {
+      setTimePickerField(field);
+      setShowMobileTimePicker(true);
+    }
+  };
+
+  const handleMobileTimeConfirm = (timeString) => {
+    if (timePickerField === 'start') {
+      setEditFormData({ ...editFormData, firstStartTime: timeString });
+    } else if (timePickerField === 'end') {
+      setEditFormData({ ...editFormData, lastEndTime: timeString });
+    }
+    setShowMobileTimePicker(false);
+    setTimePickerField(null);
+  };
+
+  const handleMobileTimeCancel = () => {
+    setShowMobileTimePicker(false);
+    setTimePickerField(null);
   };
 
   // Generate date rows for current day + next 2 months
@@ -1471,26 +1510,58 @@ const ShiftEntry = ({ refreshTrigger }) => {
 
                     <div className="col-md-4">
                       <label className="form-label">Start Time</label>
-                      <input
-                        type="time"
-                        className="form-control"
-                        value={editFormData.firstStartTime}
-                        onChange={(e) => setEditFormData({ ...editFormData, firstStartTime: e.target.value })}
-                        disabled={saving}
-                        required
-                      />
+                      {isMobileView ? (
+                        <div
+                          className="form-control"
+                          onClick={() => handleMobileTimeClick('start')}
+                          style={{
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between'
+                          }}
+                        >
+                          <span>{editFormData.firstStartTime || 'Select time'}</span>
+                          <i className="bi bi-clock"></i>
+                        </div>
+                      ) : (
+                        <input
+                          type="time"
+                          className="form-control"
+                          value={editFormData.firstStartTime}
+                          onChange={(e) => setEditFormData({ ...editFormData, firstStartTime: e.target.value })}
+                          disabled={saving}
+                          required
+                        />
+                      )}
                     </div>
 
                     <div className="col-md-4">
                       <label className="form-label">End Time</label>
-                      <input
-                        type="time"
-                        className="form-control"
-                        value={editFormData.lastEndTime}
-                        onChange={(e) => setEditFormData({ ...editFormData, lastEndTime: e.target.value })}
-                        disabled={saving}
-                        required
-                      />
+                      {isMobileView ? (
+                        <div
+                          className="form-control"
+                          onClick={() => handleMobileTimeClick('end')}
+                          style={{
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between'
+                          }}
+                        >
+                          <span>{editFormData.lastEndTime || 'Select time'}</span>
+                          <i className="bi bi-clock"></i>
+                        </div>
+                      ) : (
+                        <input
+                          type="time"
+                          className="form-control"
+                          value={editFormData.lastEndTime}
+                          onChange={(e) => setEditFormData({ ...editFormData, lastEndTime: e.target.value })}
+                          disabled={saving}
+                          required
+                        />
+                      )}
                     </div>
                   </div>
 
@@ -1571,6 +1642,16 @@ const ShiftEntry = ({ refreshTrigger }) => {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Mobile Custom Time Picker */}
+        {showMobileTimePicker && (
+          <CustomTimePicker
+            title={timePickerField === 'start' ? 'Start Time' : 'End Time'}
+            initialTime={timePickerField === 'start' ? editFormData.firstStartTime : editFormData.lastEndTime}
+            onConfirm={handleMobileTimeConfirm}
+            onCancel={handleMobileTimeCancel}
+          />
         )}
       </div>
     </div>
