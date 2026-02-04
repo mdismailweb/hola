@@ -2195,45 +2195,60 @@ function createCompleteShift(data, clientTimezone) {
     let totalDuration = data.totalDuration || 0;
 
     if (segments.length > 0) {
-      // Calculate from segments if not provided or if provided values are empty
-      if (!firstStartTime || !lastEndTime || totalDuration === 0) {
-        Logger.log('🧮 Calculating missing values from segments...');
+      Logger.log('🧮 Recalculating shift bounds from segments...');
 
-        // Sort segments by start time
-        const sortedSegments = [...segments].sort((a, b) => {
-          const timeA = a.startTime.split(':').map(Number);
-          const timeB = b.startTime.split(':').map(Number);
-          return (timeA[0] * 60 + timeA[1]) - (timeB[0] * 60 + timeB[1]);
-        });
+      let calculatedTotalDuration = 0;
+      let currentDayOffset = 0;
+      let lastAbsoluteEndMinutes = -1;
+      let absoluteTimeline = [];
 
-        // Calculate first start time
-        if (!firstStartTime) {
-          firstStartTime = sortedSegments[0].startTime;
-          Logger.log(`📊 Calculated firstStartTime: ${firstStartTime}`);
-        }
+      // Process segments in provided order to build a chronological timeline
+      segments.forEach((seg, index) => {
+        const [startH, startM] = seg.startTime.split(':').map(Number);
+        const [endH, endM] = seg.endTime.split(':').map(Number);
 
-        // Calculate last end time (from the segment with the latest end time)
-        if (!lastEndTime) {
-          const segmentsWithEndTime = segments.filter(seg => seg.endTime);
-          if (segmentsWithEndTime.length > 0) {
-            const sortedByEndTime = segmentsWithEndTime.sort((a, b) => {
-              const timeA = a.endTime.split(':').map(Number);
-              const timeB = b.endTime.split(':').map(Number);
-              return (timeB[0] * 60 + timeB[1]) - (timeA[0] * 60 + timeA[1]);
-            });
-            lastEndTime = sortedByEndTime[0].endTime;
-            Logger.log(`📊 Calculated lastEndTime: ${lastEndTime}`);
+        let startMinutes = startH * 60 + startM;
+        let endMinutes = endH * 60 + endM;
+
+        // Detect day rollover based on sequence
+        if (lastAbsoluteEndMinutes !== -1) {
+          if (startMinutes < (lastAbsoluteEndMinutes % 1440)) {
+            currentDayOffset += 1;
+            Logger.log(`📅 Day rollover detected at segment ${index + 1} (Start: ${seg.startTime})`);
           }
         }
 
-        // Calculate total duration
-        if (totalDuration === 0) {
-          totalDuration = segments.reduce((total, segment) => {
-            return total + (segment.duration || 0);
-          }, 0);
-          Logger.log(`📊 Calculated totalDuration: ${totalDuration}`);
+        let absoluteStart = (currentDayOffset * 1440) + startMinutes;
+        let absoluteEnd = (currentDayOffset * 1440) + endMinutes;
+
+        // Handle intra-segment rollover (e.g., 10 PM to 2 AM)
+        if (absoluteEnd <= absoluteStart) {
+          absoluteEnd += 1440;
+          currentDayOffset += 1;
+          Logger.log(`🌙 Intra-segment midnight crossing detected at segment ${index + 1} (${seg.startTime} to ${seg.endTime})`);
         }
-      }
+
+        const duration = (absoluteEnd - absoluteStart) / 60;
+        calculatedTotalDuration += duration;
+
+        absoluteTimeline.push({
+          start: absoluteStart,
+          end: absoluteEnd,
+          startTime: seg.startTime,
+          endTime: seg.endTime
+        });
+
+        lastAbsoluteEndMinutes = absoluteEnd;
+      });
+
+      // Sort timeline and pick start/end
+      absoluteTimeline.sort((a, b) => a.start - b.start);
+
+      firstStartTime = absoluteTimeline[0].startTime;
+      lastEndTime = absoluteTimeline[absoluteTimeline.length - 1].endTime;
+      totalDuration = Math.round(calculatedTotalDuration * 100) / 100;
+
+      Logger.log(`📊 Recalculated: Start=${firstStartTime}, End=${lastEndTime}, Duration=${totalDuration}`);
     }
 
     const scheduleStatus = data.scheduleStatus || 'draft';
@@ -9412,6 +9427,9 @@ function updateShiftSegments(data) {
         // Update Last Updated timestamp (Column M - index 12)
         sheet.getRange(rowNumber, 13).setValue(new Date());
 
+        // Update "Updated" flag (Column O - index 14)
+        sheet.getRange(rowNumber, 15).setValue('Yes');
+
         Logger.log(`✅ Segments updated successfully`);
 
         return {
@@ -9470,14 +9488,34 @@ function syncCompleteShift(data) {
         // 🔥 CALCULATE firstStartTime from segments if not provided
         let firstStartTime = data.firstStartTime;
         if (!firstStartTime && segments && segments.length > 0) {
-          // Get the earliest start time from segments
-          const sortedSegments = [...segments].sort((a, b) => {
-            const timeA = a.startTime.split(':').map(Number);
-            const timeB = b.startTime.split(':').map(Number);
-            return (timeA[0] * 60 + timeA[1]) - (timeB[0] * 60 + timeB[1]);
+          // Get chronological first start time using sequence-aware logic
+          let currentDayOffset = 0;
+          let lastAbsoluteEndMinutes = -1;
+          const timeline = [];
+
+          segments.forEach((seg) => {
+            const [startH, startM] = seg.startTime.split(':').map(Number);
+            const [endH, endM] = seg.endTime.split(':').map(Number);
+            let startMinutes = startH * 60 + startM;
+            let endMinutes = endH * 60 + endM;
+
+            if (lastAbsoluteEndMinutes !== -1 && startMinutes < (lastAbsoluteEndMinutes % 1440)) {
+              currentDayOffset += 1;
+            }
+            let absoluteStart = (currentDayOffset * 1440) + startMinutes;
+            let absoluteEnd = (currentDayOffset * 1440) + endMinutes;
+            if (absoluteEnd <= absoluteStart) {
+              absoluteEnd += 1440;
+              currentDayOffset += 1;
+            }
+
+            timeline.push({ startTime: seg.startTime, absoluteStart: absoluteStart });
+            lastAbsoluteEndMinutes = absoluteEnd;
           });
-          firstStartTime = sortedSegments[0].startTime;
-          Logger.log(`📋 Calculated firstStartTime from segments: ${firstStartTime}`);
+
+          timeline.sort((a, b) => a.absoluteStart - b.absoluteStart);
+          firstStartTime = timeline[0].startTime;
+          Logger.log(`📋 Calculated chronological firstStartTime: ${firstStartTime}`);
         }
 
         // Update First Start Time (Column F - index 5) - MISSING FROM REVEAL SLOTS!
@@ -9509,6 +9547,9 @@ function syncCompleteShift(data) {
 
         // Update Last Updated timestamp (Column M - index 12)
         sheet.getRange(rowNumber, 13).setValue(new Date());
+
+        // Update "Updated" flag (Column O - index 14)
+        sheet.getRange(rowNumber, 15).setValue('Yes');
 
         Logger.log(`✅ Complete shift sync successful - Updated columns: F(Start), G(End), H(Duration), I(NumSegments), J(SegmentsData), K(Status), M(LastUpdated)`);
 

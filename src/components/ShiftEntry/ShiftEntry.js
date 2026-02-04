@@ -570,6 +570,7 @@ const ShiftEntry = ({ refreshTrigger }) => {
   const handleEditShift = (shift) => {
     console.log('📝 Edit shift clicked:', shift);
     setEditingShift(shift);
+    setShowAdvancedEdit(true); // Always show advanced editor by default
 
     const extractTime = (timeValue) => {
       if (!timeValue) return '';
@@ -1553,7 +1554,8 @@ const ShiftEntry = ({ refreshTrigger }) => {
                     <strong>Date:</strong> {formatDate(editingShift.shiftDate || editingShift.date)}
                   </div>
 
-                  <div className="row g-3">
+                  {/* LEGACY SIMPLE FIELDS - HIDDEN BUT RETAINED */}
+                  <div className="row g-3" style={{ display: 'none' }}>
                     <div className="col-md-4">
                       <label className={`form-label ${isDarkMode ? 'text-light' : ''}`}>Shift Type</label>
                       <select
@@ -1627,7 +1629,7 @@ const ShiftEntry = ({ refreshTrigger }) => {
                   </div>
 
                   {editFormData.firstStartTime && editFormData.lastEndTime && (
-                    <div className={`mt-3 p-3 rounded ${isDarkMode ? 'bg-secondary text-white' : 'bg-light'}`}>
+                    <div className={`mt-3 p-3 rounded ${isDarkMode ? 'bg-secondary text-white' : 'bg-light'}`} style={{ display: 'none' }}>
                       <div className="d-flex justify-content-between align-items-center">
                         <span>Calculated Duration:</span>
                         <strong className={isDarkMode ? 'text-info' : 'text-primary'}>
@@ -1637,67 +1639,32 @@ const ShiftEntry = ({ refreshTrigger }) => {
                     </div>
                   )}
 
-                  {/* Advanced Time Segment Entry */}
-                  <div className="mt-3">
-                    <button
-                      type="button"
-                      className="btn btn-info btn-sm"
-                      onClick={() => setShowAdvancedEdit(!showAdvancedEdit)}
-                      disabled={saving}
-                    >
-                      <i className="bi bi-gear me-1"></i>
-                      {showAdvancedEdit ? 'Hide Advanced Edit' : 'Advanced Edit (Time Segments)'}
-                    </button>
-                  </div>
-
-                  {showAdvancedEdit && (
-                    <div className="mt-3">
-                      <h6 className={isDarkMode ? 'text-info' : 'text-primary'}>
-                        <i className="bi bi-gear me-2"></i>
-                        Advanced Time Segment Editor
-                      </h6>
-                      <div className={`border rounded p-3 ${isDarkMode ? 'bg-dark border-secondary' : 'bg-light'}`}>
-                        <TimeSegmentEntry
-                          existingSegments={editingShift ? JSON.parse(editingShift.timeSegments || '[]') : []}
-                          onSubmit={handleSubmitTimeSegments}
-                          buttonText="Update Time Segments"
-                          submitButtonClass="btn-success"
-                          showSubmitButton={true}
-                          employeeName={editingShift?.employeeName}
-                          employeeId={editingShift?.employeeId}
-                          shiftDate={editingShift?.shiftDate || editingShift?.date}
-                          onCancel={() => setShowAdvancedEdit(false)}
-                        />
-                      </div>
+                  {/* Advanced Time Segment Editor - NOW PRIMARY UI */}
+                  <div className="mt-2 text-center">
+                    <h6 className={isDarkMode ? 'text-info' : 'text-primary'}><i className="bi bi-clock-history me-2"></i>Shift Time Editor</h6>
+                    <div className={`border rounded p-1 text-start ${isDarkMode ? 'bg-dark border-secondary' : 'bg-light'}`}>
+                      <TimeSegmentEntry
+                        existingSegments={editingShift ? (typeof editingShift.timeSegments === 'string' ? JSON.parse(editingShift.timeSegments || '[]') : (editingShift.segments || [])) : []}
+                        onSubmit={handleSubmitTimeSegments}
+                        buttonText="Save Shift Times"
+                        submitButtonClass="btn-success w-100 mt-2"
+                        showSubmitButton={true}
+                        employeeName={editingShift?.employeeName || user.name}
+                        employeeId={editingShift?.employeeId || user.id}
+                        shiftDate={editingShift?.shiftDate || editingShift?.date}
+                        onCancel={handleCancelEdit}
+                      />
                     </div>
-                  )}
+                  </div>
                 </div>
-                <div className={`modal-footer ${isDarkMode ? 'border-secondary' : ''}`}>
+                <div className="modal-footer">
                   <button
                     type="button"
-                    className="btn btn-secondary"
+                    className={`btn ${isDarkMode ? 'btn-outline-light' : 'btn-outline-secondary'}`}
                     onClick={handleCancelEdit}
                     disabled={saving}
                   >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    onClick={handleSaveEdit}
-                    disabled={saving || !editFormData.firstStartTime || !editFormData.lastEndTime}
-                  >
-                    {saving ? (
-                      <>
-                        <span className="spinner-border spinner-border-sm me-2" role="status"></span>
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <i className="bi bi-check-lg me-1"></i>
-                        Save Changes
-                      </>
-                    )}
+                    Close
                   </button>
                 </div>
               </div>

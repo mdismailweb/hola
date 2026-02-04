@@ -7,7 +7,7 @@ import {
 
 // Replace with your actual Google Apps Script Web App URL
 // Replace with your NEW Google Apps Script Web App URL after redeployment
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwdW7CufxLuQqVw7AmJGQeAJs13B9omvssaxxT_7voHRCVhL-stFz4-rbF11ET1wNzlfw/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwEW7aNh6g1OH_6HkdvbTQxJRdwhzIqLXnGLUY1gcupCoJK-dd-pvCeJRyhq-pVM6n6PA/exec';
 
 // Test function to check if data exists in sheets with very broad date range
 export const testDataExists = async () => {
@@ -1055,31 +1055,53 @@ export const submitTimeSegments = async (payload) => {
   let totalDuration = 0;
 
   if (segments.length > 0) {
-    // Sort segments by start time to ensure correct order
-    const sortedSegments = [...segments].sort((a, b) => {
-      const timeA = a.startTime.split(':').map(Number);
-      const timeB = b.startTime.split(':').map(Number);
-      return (timeA[0] * 60 + timeA[1]) - (timeB[0] * 60 + timeB[1]);
-    });
+    let currentDayOffset = 0;
+    let lastAbsoluteEndMinutes = -1;
+    const timeline = [];
 
-    // Get first start time and last end time
-    firstStartTime = sortedSegments[0].startTime;
-    lastEndTime = sortedSegments[sortedSegments.length - 1].endTime;
+    // Process segments in order to track absolute timeline
+    segments.forEach((seg) => {
+      const [startH, startM] = seg.startTime.split(':').map(Number);
+      const [endH, endM] = seg.endTime.split(':').map(Number);
 
-    // Calculate total duration
-    totalDuration = segments.reduce((total, segment) => {
-      let segmentDuration = segment.duration || 0;
+      let startMinutes = startH * 60 + startM;
+      let endMinutes = endH * 60 + endM;
 
-      // Fallback: Calculate duration if missing
-      if (!segmentDuration && segment.startTime && segment.endTime) {
-        segmentDuration = calculateDuration(segment.startTime, segment.endTime);
-        console.log(`🔧 Calculated missing duration for segment: ${segment.startTime} to ${segment.endTime} = ${segmentDuration.toFixed(2)} hours`);
+      if (lastAbsoluteEndMinutes !== -1) {
+        if (startMinutes < (lastAbsoluteEndMinutes % 1440)) {
+          currentDayOffset += 1;
+        }
       }
 
-      return total + segmentDuration;
-    }, 0);
+      let absoluteStart = (currentDayOffset * 1440) + startMinutes;
+      let absoluteEnd = (currentDayOffset * 1440) + endMinutes;
 
-    console.log(`📊 Calculated: firstStartTime=${firstStartTime}, lastEndTime=${lastEndTime}, totalDuration=${totalDuration.toFixed(2)}`);
+      if (absoluteEnd <= absoluteStart) {
+        absoluteEnd += 1440;
+        currentDayOffset += 1;
+      }
+
+      timeline.push({
+        ...seg,
+        absoluteStart,
+        absoluteEnd,
+        duration: (absoluteEnd - absoluteStart) / 60
+      });
+
+      lastAbsoluteEndMinutes = absoluteEnd;
+    });
+
+    // Sort timeline by absolute start
+    timeline.sort((a, b) => a.absoluteStart - b.absoluteStart);
+
+    // Get true chronological start and end
+    firstStartTime = timeline[0].startTime;
+    lastEndTime = timeline[timeline.length - 1].endTime;
+
+    // Calculate total duration from sequence-aware segments
+    totalDuration = timeline.reduce((total, seg) => total + seg.duration, 0);
+
+    console.log(`📊 Recalculated chronologically: firstStartTime=${firstStartTime}, lastEndTime=${lastEndTime}, totalDuration=${totalDuration.toFixed(2)}`);
   }
 
   // 🔥 CALCULATE SMART STATUS based on current time vs end time

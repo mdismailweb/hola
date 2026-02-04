@@ -541,6 +541,7 @@ const ShiftHistory = ({ refreshTrigger }) => {
     console.log('📝 Edit shift clicked:', shift);
 
     setEditingShift(shift);
+    setShowAdvancedEdit(true); // Always show advanced editor by default
 
     // Debug: Log the shift data to see what properties are available
     console.log('🔍 Edit shift data:', shift);
@@ -1248,7 +1249,8 @@ const ShiftHistory = ({ refreshTrigger }) => {
                   <strong>Date:</strong> {formatDate(editingShift.shiftDate || editingShift.date)}
                 </div>
 
-                <div className="row g-3">
+                {/* LEGACY SIMPLE FIELDS - HIDDEN BUT RETAINED */}
+                <div className="row g-3" style={{ display: 'none' }}>
                   <div className="col-md-4">
                     <label className={`form-label ${isDarkMode ? 'text-light' : ''}`}>Shift Type</label>
                     <select
@@ -1310,7 +1312,7 @@ const ShiftHistory = ({ refreshTrigger }) => {
                 </div>
 
                 {editFormData.firstStartTime && editFormData.lastEndTime && (
-                  <div className={`mt-3 p-3 rounded ${isDarkMode ? 'bg-secondary text-white border border-secondary' : 'bg-light'}`}>
+                  <div className={`mt-3 p-3 rounded ${isDarkMode ? 'bg-secondary text-white border border-secondary' : 'bg-light'}`} style={{ display: 'none' }}>
                     <div className="d-flex justify-content-between align-items-center">
                       <span>Calculated Duration:</span>
                       <strong className={isDarkMode ? 'text-info' : 'text-primary'}>
@@ -1320,24 +1322,23 @@ const ShiftHistory = ({ refreshTrigger }) => {
                   </div>
                 )}
 
-                {/* Advanced Time Segment Entry */}
+                {/* Advanced Time Segment Editor - NOW PRIMARY UI */}
                 {showAdvancedEdit && (
-                  <div className="mt-4">
+                  <div className="mt-2 text-center">
                     <h6 className={isDarkMode ? 'text-info' : 'text-primary'}>
-                      <i className="bi bi-gear me-2"></i>
-                      Advanced Time Segment Editor
+                      <i className="bi bi-clock-history me-2"></i>Shift Time Editor
                     </h6>
-                    <div className={`border rounded p-3 ${isDarkMode ? 'bg-dark border-secondary' : 'bg-light'}`}>
+                    <div className={`border rounded p-1 text-start ${isDarkMode ? 'bg-dark border-secondary' : 'bg-light'}`}>
                       <TimeSegmentEntry
-                        existingSegments={editingShift ? JSON.parse(editingShift.timeSegments || '[]') : []}
+                        existingSegments={editingShift ? (typeof editingShift.timeSegments === 'string' ? JSON.parse(editingShift.timeSegments || '[]') : (editingShift.segments || [])) : []}
                         onSubmit={handleAdvancedEdit}
-                        buttonText="Update Time Segments"
-                        submitButtonClass="btn-success"
+                        buttonText="Save Shift Times"
+                        submitButtonClass="btn-success w-100 mt-2"
                         showSubmitButton={true}
                         employeeName={editingShift?.employeeName}
                         employeeId={editingShift?.employeeId}
                         shiftDate={editingShift?.shiftDate || editingShift?.date}
-                        onCancel={() => setShowAdvancedEdit(false)}
+                        onCancel={handleCancelEdit}
                       />
                     </div>
                   </div>
@@ -1356,41 +1357,14 @@ const ShiftHistory = ({ refreshTrigger }) => {
                   </small>
                 </div>
               </div>
-              <div className={`modal-footer ${isDarkMode ? 'border-secondary' : ''}`}>
+              <div className="modal-footer">
                 <button
                   type="button"
-                  className="btn btn-secondary"
+                  className={`btn ${isDarkMode ? 'btn-outline-light' : 'btn-outline-secondary'}`}
                   onClick={handleCancelEdit}
                   disabled={saving}
                 >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-info me-2"
-                  onClick={() => setShowAdvancedEdit(!showAdvancedEdit)}
-                  disabled={saving}
-                >
-                  <i className="bi bi-gear me-1"></i>
-                  {showAdvancedEdit ? 'Hide Advanced' : 'Advanced Edit'}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={handleSaveEdit}
-                  disabled={saving || !editFormData.firstStartTime || !editFormData.lastEndTime}
-                >
-                  {saving ? (
-                    <>
-                      <span className="spinner-border spinner-border-sm me-2" role="status"></span>
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <i className="bi bi-check-lg me-1"></i>
-                      Save Changes
-                    </>
-                  )}
+                  Close
                 </button>
               </div>
             </div>
