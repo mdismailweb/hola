@@ -28,6 +28,7 @@ import {
 import ScheduleChangeWarning from '../ScheduleChangeWarning/ScheduleChangeWarning';
 import { useAuth } from '../../contexts/AuthContext';
 import CustomTimePicker from '../CustomTimePicker/CustomTimePicker';
+import { formatTime12Hour } from '../../utils/timeFormat';
 
 const TimeSegmentEntry = ({ onSubmit, existingSegments = [], loading = false, shiftDate = null, scheduleStatus = 'draft' }) => {
   const { user } = useAuth();
@@ -397,7 +398,7 @@ const TimeSegmentEntry = ({ onSubmit, existingSegments = [], loading = false, sh
                         Start Time
                       </Typography>
                       <Typography variant="body1">
-                        {segment.startTime || 'Select time'}
+                        {formatTime12Hour(segment.startTime) || 'Select time'}
                       </Typography>
                     </Box>
                   ) : (
@@ -439,7 +440,7 @@ const TimeSegmentEntry = ({ onSubmit, existingSegments = [], loading = false, sh
                         End Time
                       </Typography>
                       <Typography variant="body1">
-                        {segment.endTime || 'Select time'}
+                        {formatTime12Hour(segment.endTime) || 'Select time'}
                       </Typography>
                     </Box>
                   ) : (

@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { getEffectiveShiftDate } from '../../utils/dateUtils';
+import { formatTime12Hour } from '../../utils/timeFormat';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   handleAPIError,
@@ -798,19 +800,19 @@ const ShiftEntry = ({ refreshTrigger }) => {
   const formatTime = (timeStr) => {
     if (!timeStr || timeStr === '-') return '-';
     try {
-      if (timeStr.match(/^\d{1,2}:\d{2}$/)) {
-        return timeStr;
+      if (typeof timeStr === 'string' && /^\d{1,2}:\d{2}$/.test(timeStr)) {
+        return formatTime12Hour(timeStr);
       }
-      if (timeStr.includes('T')) {
+      if (timeStr.includes('T') || timeStr instanceof Date) {
         const date = new Date(timeStr);
         return date.toLocaleTimeString('en-US', {
-          hour: '2-digit',
+          hour: 'numeric',
           minute: '2-digit',
-          hour12: false
+          hour12: true
         });
       }
       return timeStr;
-    } catch (error) {
+    } catch (e) {
       return timeStr;
     }
   };
@@ -1449,8 +1451,8 @@ const ShiftEntry = ({ refreshTrigger }) => {
                         {viewingSegments.parsedSegments && viewingSegments.parsedSegments.length > 0 ? (
                           viewingSegments.parsedSegments.map((seg, idx) => (
                             <tr key={idx}>
-                              <td>{seg.startTime || '-'}</td>
-                              <td>{seg.endTime || '-'}</td>
+                              <td>{formatTime(seg.startTime) || '-'}</td>
+                              <td>{formatTime(seg.endTime) || '-'}</td>
                               <td>{seg.duration ? formatDuration(seg.duration) : '-'} hrs</td>
                             </tr>
                           ))

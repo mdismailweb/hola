@@ -13,6 +13,7 @@ import {
 } from '../../services/appScriptAPI';
 import TimeSegmentEntry from '../TimeSegmentEntry/TimeSegmentEntry';
 import CustomTimePicker from '../CustomTimePicker/CustomTimePicker';
+import { formatTime12Hour } from '../../utils/timeFormat';
 
 const ShiftHistory = ({ refreshTrigger }) => {
   const { user } = useAuth();
@@ -785,53 +786,26 @@ const ShiftHistory = ({ refreshTrigger }) => {
     if (!timeStr || timeStr === '-') return '-';
 
     try {
-      const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-
-      // If it's already in HH:MM format, assume it's in server timezone and convert
-      if (timeStr.match(/^\d{1,2}:\d{2}$/)) {
-        // Create a date object for today with the server time
-        const today = new Date().toISOString().split('T')[0];
-        const serverDateTime = new Date(`${today}T${timeStr}:00`);
-
-        // Display in user's timezone
-        return serverDateTime.toLocaleTimeString('en-US', {
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: false,
-          timeZone: userTimezone
-        });
+      // If it's a valid HH:MM string, use utility
+      if (typeof timeStr === 'string' && /^\d{1,2}:\d{2}$/.test(timeStr)) {
+        return formatTime12Hour(timeStr);
       }
 
-      // If it's a timestamp format like "1899-12-30T06:59:50.000Z"
-      if (timeStr.includes('T')) {
+      if (timeStr.includes('T') || timeStr instanceof Date) {
         const date = new Date(timeStr);
-        // Convert to user's timezone
+        // Display in user's timezone with 12-hour format
         return date.toLocaleTimeString('en-US', {
-          hour: '2-digit',
+          hour: 'numeric',
           minute: '2-digit',
-          hour12: false,
-          timeZone: userTimezone
+          hour12: true
         });
       }
-
-      // If it's just a time string, try to parse it as server time
-      const today = new Date().toISOString().split('T')[0];
-      const date = new Date(`${today}T${timeStr}`);
-      if (!isNaN(date.getTime())) {
-        return date.toLocaleTimeString('en-US', {
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: false,
-          timeZone: userTimezone
-        });
-      }
-
       return timeStr;
     } catch (error) {
-      console.error('Error formatting time:', timeStr, error);
       return timeStr;
     }
   };
+
 
   if (!user) {
     return (
