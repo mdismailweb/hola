@@ -958,7 +958,8 @@ const ShiftEntry = ({ refreshTrigger }) => {
                       background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                       border: 'none',
                       color: 'white',
-                      boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)'
+                      boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
+                      display: 'none'
                     }}
                   >
                     <i className="bi bi-lightning-fill me-2"></i>
